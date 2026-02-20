@@ -198,17 +198,27 @@ select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%
       <div id="objects-list"></div>
       <div id="selected-controls" style="display:none;margin-top:12px;border-top:1px solid var(--border);padding-top:12px;">
         <div style="font-family:Space Mono,monospace;font-size:9px;color:var(--accent);letter-spacing:2px;margin-bottom:10px" id="selected-label">SELECTED: —</div>
-        <div class="control-row"><div class="control-label">Material Color</div><input type="color" id="obj-color" value="#e8ff47" onchange="updateSelected('color',this.value)"></div>
-        <div class="control-row"><div class="control-label">Material Type</div>
+        <div class="fx-section-title">POSITION</div>
+        <div class="control-row"><div class="control-label"><span>X</span><span class="val" id="pos-x-val">0</span></div><input type="range" id="obj-pos-x" min="-15" max="15" step="0.1" value="0" oninput="updateSelected('posX',this.value);document.getElementById('pos-x-val').textContent=(+this.value).toFixed(1)"></div>
+        <div class="control-row"><div class="control-label"><span>Y</span><span class="val" id="pos-y-val">0</span></div><input type="range" id="obj-pos-y" min="0" max="10" step="0.1" value="0.5" oninput="updateSelected('posY',this.value);document.getElementById('pos-y-val').textContent=(+this.value).toFixed(1)"></div>
+        <div class="control-row"><div class="control-label"><span>Z</span><span class="val" id="pos-z-val">0</span></div><input type="range" id="obj-pos-z" min="-15" max="15" step="0.1" value="0" oninput="updateSelected('posZ',this.value);document.getElementById('pos-z-val').textContent=(+this.value).toFixed(1)"></div>
+        <div class="fx-divider"></div>
+        <div class="fx-section-title">TRANSFORM</div>
+        <div class="control-row"><div class="control-label"><span>Scale</span><span class="val" id="scale-val">1.0</span></div><input type="range" id="obj-scale" min="0.1" max="5" step="0.1" value="1.0" oninput="updateSelected('scale',this.value);document.getElementById('scale-val').textContent=(+this.value).toFixed(1)"></div>
+        <div class="control-row"><div class="control-label"><span>Rotation Y</span><span class="val" id="rot-y-val">0</span></div><input type="range" id="obj-rot-y" min="0" max="360" step="1" value="0" oninput="updateSelected('rotY',this.value);document.getElementById('rot-y-val').textContent=this.value+'°'"></div>
+        <div class="fx-divider"></div>
+        <div class="fx-section-title">MATERIAL</div>
+        <div class="control-row"><div class="control-label">Color</div><input type="color" id="obj-color" value="#e8ff47" onchange="updateSelected('color',this.value)"></div>
+        <div class="control-row"><div class="control-label">Type</div>
           <select id="obj-material" onchange="updateSelected('material',this.value)">
             <option value="standard">Standard (PBR)</option><option value="phong">Phong</option>
             <option value="wireframe">Wireframe</option><option value="normal">Normal Map</option>
             <option value="glass">Glass</option><option value="emissive">Emissive (Glows)</option>
           </select>
         </div>
-        <div class="control-row"><div class="control-label"><span>Roughness</span><span class="val" id="rough-val">0.5</span></div><input type="range" id="obj-rough" min="0" max="1" step="0.05" value="0.5" onchange="updateSelected('roughness',this.value);document.getElementById('rough-val').textContent=this.value"></div>
-        <div class="control-row"><div class="control-label"><span>Metalness</span><span class="val" id="metal-val">0.1</span></div><input type="range" id="obj-metal" min="0" max="1" step="0.05" value="0.1" onchange="updateSelected('metalness',this.value);document.getElementById('metal-val').textContent=this.value"></div>
-        <div class="control-row"><div class="control-label"><span>Scale</span><span class="val" id="scale-val">1.0</span></div><input type="range" id="obj-scale" min="0.1" max="5" step="0.1" value="1.0" onchange="updateSelected('scale',this.value);document.getElementById('scale-val').textContent=this.value"></div>
+        <div class="control-row"><div class="control-label"><span>Roughness</span><span class="val" id="rough-val">0.5</span></div><input type="range" id="obj-rough" min="0" max="1" step="0.05" value="0.5" oninput="updateSelected('roughness',this.value);document.getElementById('rough-val').textContent=this.value"></div>
+        <div class="control-row"><div class="control-label"><span>Metalness</span><span class="val" id="metal-val">0.1</span></div><input type="range" id="obj-metal" min="0" max="1" step="0.05" value="0.1" oninput="updateSelected('metalness',this.value);document.getElementById('metal-val').textContent=this.value"></div>
+        <div class="fx-divider"></div>
         <div class="toggle-row"><span class="toggle-label">IDLE ANIMATION</span><div class="toggle on" id="toggle-anim-obj" onclick="updateSelected('animate',null,this)"></div></div>
         <button class="btn danger" onclick="removeSelected()" style="width:100%;margin-top:6px">REMOVE OBJECT</button>
       </div>
@@ -560,14 +570,35 @@ function selectObject(obj){
   selectedObject=obj;updateObjectsList();
   document.getElementById('selected-controls').style.display='block';
   document.getElementById('selected-label').textContent=`SELECTED: ${obj.userData.type.toUpperCase()} #${obj.userData.id}`;
-  if(obj.material&&obj.material.color)document.getElementById('obj-color').value='#'+obj.material.color.getHexString();
+  // Position
+  document.getElementById('obj-pos-x').value=obj.position.x;
+  document.getElementById('pos-x-val').textContent=obj.position.x.toFixed(1);
+  document.getElementById('obj-pos-y').value=obj.position.y;
+  document.getElementById('pos-y-val').textContent=obj.position.y.toFixed(1);
+  document.getElementById('obj-pos-z').value=obj.position.z;
+  document.getElementById('pos-z-val').textContent=obj.position.z.toFixed(1);
+  // Scale
   document.getElementById('obj-scale').value=obj.scale.x;
   document.getElementById('scale-val').textContent=obj.scale.x.toFixed(1);
+  // Rotation
+  const rotDeg=Math.round(THREE.MathUtils.radToDeg(obj.rotation.y)%360+360)%360;
+  document.getElementById('obj-rot-y').value=rotDeg;
+  document.getElementById('rot-y-val').textContent=rotDeg+'°';
+  // Material
+  if(obj.material&&obj.material.color)document.getElementById('obj-color').value='#'+obj.material.color.getHexString();
+  if(obj.material&&obj.material.roughness!==undefined){document.getElementById('obj-rough').value=obj.material.roughness;document.getElementById('rough-val').textContent=obj.material.roughness;}
+  if(obj.material&&obj.material.metalness!==undefined){document.getElementById('obj-metal').value=obj.material.metalness;document.getElementById('metal-val').textContent=obj.material.metalness;}
+  // Animation toggle
+  document.getElementById('toggle-anim-obj').classList.toggle('on',obj.userData.animate!==false);
 }
 
 function updateSelected(prop,value,toggleEl){
   if(!selectedObject)return;
-  if(prop==='color'){selectedObject.material.color.set(value);if(selectedObject.material.emissive)selectedObject.material.emissive.set(value);}
+  if(prop==='posX'){selectedObject.position.x=parseFloat(value);}
+  else if(prop==='posY'){selectedObject.position.y=parseFloat(value);selectedObject.userData.baseY=parseFloat(value);}
+  else if(prop==='posZ'){selectedObject.position.z=parseFloat(value);}
+  else if(prop==='rotY'){selectedObject.rotation.y=THREE.MathUtils.degToRad(parseFloat(value));}
+  else if(prop==='color'){selectedObject.material.color.set(value);if(selectedObject.material.emissive)selectedObject.material.emissive.set(value);}
   else if(prop==='material'){
     const c=selectedObject.material.color?selectedObject.material.color.clone():new THREE.Color(0xffffff);
     selectedObject.material.dispose();
@@ -637,6 +668,13 @@ function onPointerMove(e){
     dragObject.position.x=intersection.x+dragOffset.x;
     dragObject.position.z=intersection.z+dragOffset.z;
     if(dragObject.userData.baseY)dragObject.userData.baseY=dragObject.position.y;
+    // Sync position sliders if this object is selected
+    if(dragObject===selectedObject){
+      document.getElementById('obj-pos-x').value=dragObject.position.x;
+      document.getElementById('pos-x-val').textContent=dragObject.position.x.toFixed(1);
+      document.getElementById('obj-pos-z').value=dragObject.position.z;
+      document.getElementById('pos-z-val').textContent=dragObject.position.z.toFixed(1);
+    }
   }
 }
 
