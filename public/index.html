@@ -779,6 +779,11 @@ function onPointerUp(e){
     selectObject(dragObject);
     dragObject.userData.clickAnim={t:0,orig:dragObject.scale.x};
     spawnRipple(e.clientX,e.clientY);
+  } else if(!dragObject&&!isDragging){
+    // Clicked empty space — deselect
+    selectedObject=null;
+    document.getElementById('selected-controls').style.display='none';
+    updateObjectsList();
   }
   dragObject=null;isDragging=false;
 }
