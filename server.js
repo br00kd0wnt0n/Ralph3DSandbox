@@ -6,6 +6,12 @@ const PORT = process.env.PORT || 3000;
 
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Redirect old filename to root (preserves ?scene= query params for share links)
+app.get('/ralph-3d-sandbox.html', (req, res) => {
+  const query = req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : '';
+  res.redirect(301, '/' + query);
+});
+
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
