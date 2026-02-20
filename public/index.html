@@ -774,13 +774,39 @@ function applyPreset(name){
 // SHARE
 // ============================================================
 function shareScene(){
-  const url=`${location.origin}${location.pathname}?scene=${btoa(JSON.stringify({
-    sky:state.sky,fogC:state.fogColor,fogD:state.fogDensity,floorM:state.floorMaterial,floorC:state.floorColor,
-    ambI:state.ambIntensity,ambC:state.ambColor,ptI:state.ptIntensity,ptC:state.ptColor,
-    name:state.personalName,camMode:state.cameraMode,
-    bloomS:state.bloomStrength,bloomR:state.bloomRadius,bloomT:state.bloomThreshold,
-    vigD:state.vignetteDarkness,vigO:state.vignetteOffset,grainI:state.grainIntensity
-  }))}`;
+  const d={
+    // Environment
+    sky:state.sky,fogC:state.fogColor,fogD:state.fogDensity,
+    floorM:state.floorMaterial,floorC:state.floorColor,floorSz:state.floorSize,
+    grid:state.showGrid,stars:state.showStars,
+    // Lighting
+    ambI:state.ambIntensity,ambC:state.ambColor,
+    ptI:state.ptIntensity,ptC:state.ptColor,ptH:state.ptHeight,
+    lOrb:state.lightOrbit,shad:state.shadows,
+    // Camera
+    camMode:state.cameraMode,fov:state.fov,camSpd:state.camSpeed,
+    // Personalisation
+    name:state.personalName,txtC:state.textColor,txtBg:state.textBg,txtF:state.textFont,sign:state.showSign,
+    // Bloom
+    blEn:state.bloomEnabled,blS:state.bloomStrength,blR:state.bloomRadius,blT:state.bloomThreshold,
+    // DOF
+    dofEn:state.dofEnabled,dofF:state.dofFocus,dofA:state.dofAperture,dofB:state.dofMaxBlur,
+    // Film grain
+    grEn:state.grainEnabled,grI:state.grainIntensity,scEn:state.scanlinesEnabled,
+    // Vignette
+    vigEn:state.vignetteEnabled,vigD:state.vignetteDarkness,vigO:state.vignetteOffset,
+    // Chromatic aberration
+    chEn:state.chromaEnabled,chS:state.chromaStrength,
+    // Dust
+    duEn:state.dustEnabled,duCt:state.dustCount,duSpd:state.dustSpeed,duSz:state.dustSize,duC:state.dustColor,
+    // Objects
+    objs:sceneObjects.map(o=>({
+      t:o.userData.type,x:+o.position.x.toFixed(2),y:+o.position.y.toFixed(2),z:+o.position.z.toFixed(2),
+      s:+o.scale.x.toFixed(2),c:o.material&&o.material.color?'#'+o.material.color.getHexString():null,
+      anim:o.userData.animate
+    }))
+  };
+  const url=`${location.origin}${location.pathname}?scene=${btoa(JSON.stringify(d))}`;
   navigator.clipboard.writeText(url).then(()=>{
     const t=document.getElementById('share-toast');t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500);
   });
@@ -791,25 +817,105 @@ function loadFromURL(){
   const data=new URLSearchParams(location.search).get('scene');if(!data)return;
   try{
     const s=JSON.parse(atob(data));
-    if(s.sky){state.sky=s.sky;scene.background.set(s.sky);document.getElementById('sky-color').value=s.sky;}
-    if(s.fogC){state.fogColor=s.fogC;scene.fog.color.set(s.fogC);}
-    if(s.fogD){state.fogDensity=s.fogD;scene.fog.density=s.fogD;}
-    if(s.floorM){state.floorMaterial=s.floorM;document.getElementById('floor-material').value=s.floorM;}
-    if(s.floorC){state.floorColor=s.floorC;}
-    if(s.ambI){state.ambIntensity=s.ambI;ambientLight.intensity=s.ambI;}
-    if(s.ambC){state.ambColor=s.ambC;ambientLight.color.set(s.ambC);}
-    if(s.ptI){state.ptIntensity=s.ptI;pointLight.intensity=s.ptI;}
-    if(s.ptC){state.ptColor=s.ptC;pointLight.color.set(s.ptC);}
-    if(s.name){state.personalName=s.name;document.getElementById('personal-name').value=s.name;}
+    // Helper to set state + UI input + optional callback
+    function apply(key,val,inputId,fn){
+      if(val===undefined||val===null)return;
+      state[key]=val;
+      if(inputId){const el=document.getElementById(inputId);if(el)el.value=val;}
+      if(fn)fn(val);
+    }
+    function applyToggle(key,val,toggleId){
+      if(val===undefined||val===null)return;
+      state[key]=val;
+      const el=document.getElementById(toggleId);if(el)el.classList.toggle('on',val);
+    }
+
+    // Environment
+    apply('sky',s.sky,'sky-color',v=>{scene.background.set(v);});
+    apply('fogColor',s.fogC,'fog-color',v=>{if(scene.fog)scene.fog.color.set(v);});
+    apply('fogDensity',s.fogD,'fog-density',v=>{if(scene.fog)scene.fog.density=v;document.getElementById('fog-val').textContent=v;});
+    apply('floorMaterial',s.floorM,'floor-material');
+    apply('floorColor',s.floorC,'floor-color');
+    apply('floorSize',s.floorSz,'floor-size',v=>{document.getElementById('floor-size-val').textContent=v;});
+    applyToggle('showGrid',s.grid,'toggle-grid');
+    applyToggle('showStars',s.stars,'toggle-stars');
+
+    // Lighting
+    apply('ambIntensity',s.ambI,'amb-intensity',v=>{ambientLight.intensity=v;document.getElementById('amb-val').textContent=v;});
+    apply('ambColor',s.ambC,'amb-color',v=>{ambientLight.color.set(v);});
+    apply('ptIntensity',s.ptI,'pt-intensity',v=>{pointLight.intensity=v;document.getElementById('pt-val').textContent=v;});
+    apply('ptColor',s.ptC,'pt-color',v=>{pointLight.color.set(v);});
+    apply('ptHeight',s.ptH,'pt-height',v=>{pointLight.position.y=v;document.getElementById('pth-val').textContent=v;});
+    applyToggle('lightOrbit',s.lOrb,'toggle-light-orbit');
+    if(s.shad!==undefined){state.shadows=s.shad;renderer.shadowMap.enabled=s.shad;const el=document.getElementById('toggle-shadows');if(el)el.classList.toggle('on',s.shad);}
+
+    // Camera
     if(s.camMode)setCamera(s.camMode);
-    if(s.bloomS&&bloomPass){bloomPass.strength=s.bloomS;}
-    if(s.bloomR&&bloomPass){bloomPass.radius=s.bloomR;}
-    if(s.bloomT&&bloomPass){bloomPass.threshold=s.bloomT;}
-    if(s.vigD&&vignettePass){vignettePass.uniforms.darkness.value=s.vigD;}
-    if(s.vigO&&vignettePass){vignettePass.uniforms.offset.value=s.vigO;}
-    if(s.grainI&&filmPass){filmPass.uniforms.nIntensity.value=s.grainI;}
-    buildFloor();buildSign();
-  }catch(e){console.warn('URL parse failed');}
+    apply('fov',s.fov,'cam-fov',v=>{camera.fov=v;camera.updateProjectionMatrix();document.getElementById('fov-val').textContent=v;});
+    apply('camSpeed',s.camSpd,'cam-speed',v=>{document.getElementById('cspeed-val').textContent=v;});
+
+    // Personalisation
+    apply('personalName',s.name,'personal-name');
+    apply('textColor',s.txtC,'text-color');
+    apply('textBg',s.txtBg,'text-bg');
+    apply('textFont',s.txtF,'text-font');
+    applyToggle('showSign',s.sign,'toggle-sign');
+
+    // Bloom
+    applyToggle('bloomEnabled',s.blEn,'toggle-bloom');
+    if(s.blEn!==undefined&&bloomPass)bloomPass.enabled=s.blEn;
+    apply('bloomStrength',s.blS,'bloom-strength',v=>{if(bloomPass)bloomPass.strength=v;document.getElementById('bloom-str-val').textContent=v;});
+    apply('bloomRadius',s.blR,'bloom-radius',v=>{if(bloomPass)bloomPass.radius=v;document.getElementById('bloom-rad-val').textContent=v;});
+    apply('bloomThreshold',s.blT,'bloom-threshold',v=>{if(bloomPass)bloomPass.threshold=v;document.getElementById('bloom-thr-val').textContent=v;});
+
+    // DOF
+    applyToggle('dofEnabled',s.dofEn,'toggle-dof');
+    if(s.dofEn!==undefined&&bokehPass)bokehPass.enabled=s.dofEn;
+    apply('dofFocus',s.dofF,'dof-focus',v=>{if(bokehPass)bokehPass.uniforms.focus.value=v;document.getElementById('dof-focus-val').textContent=v;});
+    apply('dofAperture',s.dofA,'dof-aperture',v=>{if(bokehPass)bokehPass.uniforms.aperture.value=v;document.getElementById('dof-apt-val').textContent=parseFloat(v).toExponential(1);});
+    apply('dofMaxBlur',s.dofB,'dof-maxblur',v=>{if(bokehPass)bokehPass.uniforms.maxblur.value=v;document.getElementById('dof-blur-val').textContent=v;});
+
+    // Film grain
+    applyToggle('grainEnabled',s.grEn,'toggle-grain');
+    if(s.grEn!==undefined&&filmPass)filmPass.enabled=s.grEn||state.scanlinesEnabled;
+    apply('grainIntensity',s.grI,'grain-intensity',v=>{if(filmPass)filmPass.uniforms.nIntensity.value=v;document.getElementById('grain-int-val').textContent=v;});
+    applyToggle('scanlinesEnabled',s.scEn,'toggle-scanlines');
+    if(s.scEn!==undefined&&filmPass){filmPass.uniforms.sIntensity.value=s.scEn?0.5:0.0;filmPass.enabled=state.grainEnabled||s.scEn;}
+
+    // Vignette
+    applyToggle('vignetteEnabled',s.vigEn,'toggle-vignette');
+    if(vignettePass)vignettePass.uniforms.enabled.value=state.vignetteEnabled?1.0:0.0;
+    apply('vignetteDarkness',s.vigD,'vignette-darkness',v=>{if(vignettePass)vignettePass.uniforms.darkness.value=v;document.getElementById('vig-dark-val').textContent=v;});
+    apply('vignetteOffset',s.vigO,'vignette-offset',v=>{if(vignettePass)vignettePass.uniforms.offset.value=v;document.getElementById('vig-off-val').textContent=v;});
+
+    // Chromatic aberration
+    applyToggle('chromaEnabled',s.chEn,'toggle-chroma');
+    if(chromaPass)chromaPass.uniforms.enabled.value=state.chromaEnabled?1.0:0.0;
+    apply('chromaStrength',s.chS,'chroma-strength',v=>{if(chromaPass)chromaPass.uniforms.strength.value=v;document.getElementById('chroma-str-val').textContent=v;});
+
+    // Dust
+    applyToggle('dustEnabled',s.duEn,'toggle-dust');
+    apply('dustCount',s.duCt,'dust-count',v=>{document.getElementById('dust-count-val').textContent=v;});
+    apply('dustSpeed',s.duSpd,'dust-speed',v=>{document.getElementById('dust-speed-val').textContent=v;});
+    apply('dustSize',s.duSz,'dust-size',v=>{document.getElementById('dust-size-val').textContent=v;});
+    apply('dustColor',s.duC,'dust-color');
+
+    // Rebuild environment
+    buildFloor();buildGrid();buildStars();buildSign();buildDust();
+    if(dustParticles)dustParticles.visible=state.dustEnabled;
+
+    // Objects — clear defaults and load saved
+    if(s.objs&&s.objs.length){
+      sceneObjects.forEach(o=>{scene.remove(o);o.geometry.dispose();o.material.dispose();});
+      sceneObjects=[];selectedObject=null;
+      s.objs.forEach(o=>{
+        const mesh=addObject(o.t,{x:o.x,y:o.y,z:o.z,color:o.c||'#e8ff47'});
+        if(o.s)mesh.scale.setScalar(o.s);
+        mesh.userData.animate=o.anim!==false;
+        mesh.userData.baseY=o.y;
+      });
+    }
+  }catch(e){console.warn('URL parse failed',e);}
 }
 
 // ============================================================
