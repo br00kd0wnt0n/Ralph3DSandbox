@@ -1,0 +1,14 @@
+{
+  "name": "ralph-3d-sandbox",
+  "version": "1.0.0",
+  "description": "RALPH 3D Sandbox",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
