@@ -119,9 +119,9 @@ select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%
       <div class="fx-divider"></div>
       <div class="fx-section-title">DEPTH OF FIELD</div>
       <div class="toggle-row"><span class="toggle-label">ENABLED</span><div class="toggle" id="toggle-dof" onclick="toggleFX(this,'dof')"></div></div>
-      <div class="control-row"><div class="control-label"><span>Focus Distance</span><span class="val" id="dof-focus-val">10</span></div><input type="range" id="dof-focus" min="1" max="30" step="0.5" value="10"></div>
-      <div class="control-row"><div class="control-label"><span>Aperture</span><span class="val" id="dof-apt-val">2e-5</span></div><input type="range" id="dof-aperture" min="0.000001" max="0.0001" step="0.000001" value="0.00002"></div>
-      <div class="control-row"><div class="control-label"><span>Max Blur</span><span class="val" id="dof-blur-val">0.005</span></div><input type="range" id="dof-maxblur" min="0" max="0.02" step="0.0005" value="0.005"></div>
+      <div class="control-row"><div class="control-label"><span>Focus Distance</span><span class="val" id="dof-focus-val">8</span></div><input type="range" id="dof-focus" min="0.5" max="30" step="0.5" value="8"></div>
+      <div class="control-row"><div class="control-label"><span>Aperture</span><span class="val" id="dof-apt-val">0.005</span></div><input type="range" id="dof-aperture" min="0.0005" max="0.05" step="0.0005" value="0.005"></div>
+      <div class="control-row"><div class="control-label"><span>Max Blur</span><span class="val" id="dof-blur-val">0.01</span></div><input type="range" id="dof-maxblur" min="0" max="0.05" step="0.001" value="0.01"></div>
       <div class="fx-divider"></div>
       <div class="fx-section-title">FILM GRAIN</div>
       <div class="toggle-row"><span class="toggle-label">ENABLED</span><div class="toggle on" id="toggle-grain" onclick="toggleFX(this,'grain')"></div></div>
@@ -311,7 +311,7 @@ let state={
   personalName:'RALPH',textColor:'#e8ff47',textBg:'#0a0a0c',
   textFont:"bold 80px 'Arial Black'",showSign:true,
   bloomEnabled:true,bloomStrength:0.8,bloomRadius:0.4,bloomThreshold:0.3,
-  dofEnabled:false,dofFocus:10,dofAperture:0.00002,dofMaxBlur:0.005,
+  dofEnabled:false,dofFocus:8,dofAperture:0.005,dofMaxBlur:0.01,
   grainEnabled:true,grainIntensity:0.15,scanlinesEnabled:false,
   vignetteEnabled:true,vignetteDarkness:0.6,vignetteOffset:1.0,
   chromaEnabled:false,chromaStrength:0.003,
@@ -402,7 +402,7 @@ function setupFXControls(){
   bind('bloom-radius','bloom-rad-val',v=>{state.bloomRadius=+v;if(bloomPass)bloomPass.radius=+v;});
   bind('bloom-threshold','bloom-thr-val',v=>{state.bloomThreshold=+v;if(bloomPass)bloomPass.threshold=+v;});
   bind('dof-focus','dof-focus-val',v=>{state.dofFocus=+v;if(bokehPass)bokehPass.uniforms.focus.value=+v;});
-  bind('dof-aperture','dof-apt-val',v=>{state.dofAperture=+v;if(bokehPass)bokehPass.uniforms.aperture.value=+v;},true);
+  bind('dof-aperture','dof-apt-val',v=>{state.dofAperture=+v;if(bokehPass)bokehPass.uniforms.aperture.value=+v;});
   bind('dof-maxblur','dof-blur-val',v=>{state.dofMaxBlur=+v;if(bokehPass)bokehPass.uniforms.maxblur.value=+v;});
   bind('grain-intensity','grain-int-val',v=>{state.grainIntensity=+v;if(filmPass)filmPass.uniforms.nIntensity.value=+v;});
   bind('vignette-darkness','vig-dark-val',v=>{state.vignetteDarkness=+v;if(vignettePass)vignettePass.uniforms.darkness.value=+v;});
@@ -910,7 +910,7 @@ function loadFromURL(){
     applyToggle('dofEnabled',s.dofEn,'toggle-dof');
     if(s.dofEn!==undefined&&bokehPass)bokehPass.enabled=s.dofEn;
     apply('dofFocus',s.dofF,'dof-focus',v=>{if(bokehPass)bokehPass.uniforms.focus.value=v;document.getElementById('dof-focus-val').textContent=v;});
-    apply('dofAperture',s.dofA,'dof-aperture',v=>{if(bokehPass)bokehPass.uniforms.aperture.value=v;document.getElementById('dof-apt-val').textContent=parseFloat(v).toExponential(1);});
+    apply('dofAperture',s.dofA,'dof-aperture',v=>{if(bokehPass)bokehPass.uniforms.aperture.value=v;document.getElementById('dof-apt-val').textContent=v;});
     apply('dofMaxBlur',s.dofB,'dof-maxblur',v=>{if(bokehPass)bokehPass.uniforms.maxblur.value=v;document.getElementById('dof-blur-val').textContent=v;});
 
     // Film grain
