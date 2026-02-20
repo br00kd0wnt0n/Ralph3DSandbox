@@ -873,7 +873,7 @@ function animate(){
   if(t-lastFPSTime>=1){document.getElementById('perf').textContent=`${frameCount} FPS`;frameCount=0;lastFPSTime=t;}
 
   sceneObjects.forEach(obj=>{
-    if(obj.userData.animate){
+    if(obj.userData.animate&&obj!==dragObject){
       const o=obj.userData.animOffset||0;
       if(obj.userData.type!=='glb'&&obj.userData.type!=='texture'){
         obj.rotation.y=t*0.4+o;
