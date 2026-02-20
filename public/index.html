@@ -99,10 +99,9 @@
     background: var(--panel);
     border-left: 1px solid var(--border);
     z-index: 150;
-    overflow-y: auto;
+    overflow-y: scroll;
+    -webkit-overflow-scrolling: touch;
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    display: flex;
-    flex-direction: column;
   }
 
   #control-panel.hidden {
@@ -1422,6 +1421,12 @@ function onCanvasMouseMove(e) {
   }
 }
 
+function deselectObject() {
+  selectedObject = null;
+  updateObjectsList();
+  document.getElementById('selected-controls').style.display = 'none';
+}
+
 function onCanvasMouseUp(e) {
   if (isDraggingObject && dragTarget) {
     document.getElementById('canvas-container').classList.remove('dragging');
@@ -1439,6 +1444,14 @@ function onCanvasMouseUp(e) {
 
     isDraggingObject = false;
     dragTarget = null;
+  } else if (e.button === 0 && !isDraggingObject) {
+    // Clicked empty space — check if it was a click (not an orbit drag)
+    const dx = e.clientX - mouseDownPos.x;
+    const dy = e.clientY - mouseDownPos.y;
+    if (Math.abs(dx) < 5 && Math.abs(dy) < 5) {
+      // Was a click on empty space, deselect
+      deselectObject();
+    }
   }
 }
 
