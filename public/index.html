@@ -472,6 +472,10 @@
     to { width: 60px; height: 60px; opacity: 0; }
   }
 
+  /* DRAG CURSOR */
+  #canvas-container.dragging canvas { cursor: grabbing !important; }
+  #canvas-container.hovering canvas { cursor: grab !important; }
+
   /* Scrollbar for panel on firefox */
   #control-panel { scrollbar-width: thin; scrollbar-color: var(--border) var(--bg); }
 </style>
@@ -495,7 +499,8 @@
 <div id="help-bar">
   <div>DRAG to orbit</div>
   <div>SCROLL to zoom</div>
-  <div>CLICK objects</div>
+  <div>CLICK object to select</div>
+  <div>DRAG object to move</div>
   <div>RIGHT DRAG pan</div>
 </div>
 
@@ -633,6 +638,67 @@
       <div id="objects-list"></div>
       <div id="selected-controls" style="display:none; margin-top:12px; border-top:1px solid var(--border); padding-top:12px;">
         <div style="font-family:Space Mono,monospace; font-size:9px; color:var(--accent); letter-spacing:2px; margin-bottom:10px;" id="selected-label">SELECTED: —</div>
+        <div style="font-family:Space Mono,monospace; font-size:9px; color:var(--accent3); margin-bottom:10px; letter-spacing:0.5px;">
+          CLICK + DRAG objects to move them on the floor
+        </div>
+
+        <!-- POSITION -->
+        <div style="font-family:Space Mono,monospace; font-size:9px; color:var(--muted); letter-spacing:2px; margin-bottom:8px; margin-top:4px;">POSITION</div>
+        <div class="control-row">
+          <div class="control-label"><span>X</span><span class="val" id="pos-x-val">0.0</span></div>
+          <input type="range" id="obj-pos-x" min="-15" max="15" step="0.1" value="0" oninput="updateSelected('posX', this.value); document.getElementById('pos-x-val').textContent=parseFloat(this.value).toFixed(1)">
+        </div>
+        <div class="control-row">
+          <div class="control-label"><span>Y (Height)</span><span class="val" id="pos-y-val">0.5</span></div>
+          <input type="range" id="obj-pos-y" min="0" max="10" step="0.1" value="0.5" oninput="updateSelected('posY', this.value); document.getElementById('pos-y-val').textContent=parseFloat(this.value).toFixed(1)">
+        </div>
+        <div class="control-row">
+          <div class="control-label"><span>Z</span><span class="val" id="pos-z-val">0.0</span></div>
+          <input type="range" id="obj-pos-z" min="-15" max="15" step="0.1" value="0" oninput="updateSelected('posZ', this.value); document.getElementById('pos-z-val').textContent=parseFloat(this.value).toFixed(1)">
+        </div>
+
+        <!-- ROTATION -->
+        <div style="font-family:Space Mono,monospace; font-size:9px; color:var(--muted); letter-spacing:2px; margin-bottom:8px; margin-top:8px;">ROTATION</div>
+        <div class="control-row">
+          <div class="control-label"><span>Rotate X</span><span class="val" id="rot-x-val">0°</span></div>
+          <input type="range" id="obj-rot-x" min="0" max="360" step="1" value="0" oninput="updateSelected('rotX', this.value); document.getElementById('rot-x-val').textContent=this.value+'°'">
+        </div>
+        <div class="control-row">
+          <div class="control-label"><span>Rotate Y</span><span class="val" id="rot-y-val">0°</span></div>
+          <input type="range" id="obj-rot-y" min="0" max="360" step="1" value="0" oninput="updateSelected('rotY', this.value); document.getElementById('rot-y-val').textContent=this.value+'°'">
+        </div>
+        <div class="control-row">
+          <div class="control-label"><span>Rotate Z</span><span class="val" id="rot-z-val">0°</span></div>
+          <input type="range" id="obj-rot-z" min="0" max="360" step="1" value="0" oninput="updateSelected('rotZ', this.value); document.getElementById('rot-z-val').textContent=this.value+'°'">
+        </div>
+
+        <!-- SCALE -->
+        <div style="font-family:Space Mono,monospace; font-size:9px; color:var(--muted); letter-spacing:2px; margin-bottom:8px; margin-top:8px;">SCALE</div>
+        <div class="toggle-row" style="margin-bottom:8px;">
+          <span class="toggle-label">UNIFORM SCALE</span>
+          <div class="toggle on" id="toggle-uniform-scale" onclick="toggleUniformScale(this)"></div>
+        </div>
+        <div class="control-row" id="uniform-scale-row">
+          <div class="control-label"><span>Scale</span><span class="val" id="scale-val">1.0</span></div>
+          <input type="range" id="obj-scale" min="0.1" max="5" step="0.1" value="1.0" oninput="updateSelected('scale', this.value); document.getElementById('scale-val').textContent=parseFloat(this.value).toFixed(1)">
+        </div>
+        <div id="axis-scale-rows" style="display:none;">
+          <div class="control-row">
+            <div class="control-label"><span>Scale X</span><span class="val" id="scale-x-val">1.0</span></div>
+            <input type="range" id="obj-scale-x" min="0.1" max="5" step="0.1" value="1.0" oninput="updateSelected('scaleX', this.value); document.getElementById('scale-x-val').textContent=parseFloat(this.value).toFixed(1)">
+          </div>
+          <div class="control-row">
+            <div class="control-label"><span>Scale Y</span><span class="val" id="scale-y-val">1.0</span></div>
+            <input type="range" id="obj-scale-y" min="0.1" max="5" step="0.1" value="1.0" oninput="updateSelected('scaleY', this.value); document.getElementById('scale-y-val').textContent=parseFloat(this.value).toFixed(1)">
+          </div>
+          <div class="control-row">
+            <div class="control-label"><span>Scale Z</span><span class="val" id="scale-z-val">1.0</span></div>
+            <input type="range" id="obj-scale-z" min="0.1" max="5" step="0.1" value="1.0" oninput="updateSelected('scaleZ', this.value); document.getElementById('scale-z-val').textContent=parseFloat(this.value).toFixed(1)">
+          </div>
+        </div>
+
+        <!-- MATERIAL -->
+        <div style="font-family:Space Mono,monospace; font-size:9px; color:var(--muted); letter-spacing:2px; margin-bottom:8px; margin-top:8px;">MATERIAL</div>
         <div class="control-row">
           <div class="control-label">Material Color</div>
           <input type="color" id="obj-color" value="#e8ff47" onchange="updateSelected('color', this.value)">
@@ -655,11 +721,8 @@
           <div class="control-label"><span>Metalness</span><span class="val" id="metal-val">0.1</span></div>
           <input type="range" id="obj-metal" min="0" max="1" step="0.05" value="0.1" onchange="updateSelected('metalness', this.value); document.getElementById('metal-val').textContent=this.value">
         </div>
-        <div class="control-row">
-          <div class="control-label"><span>Scale</span><span class="val" id="scale-val">1.0</span></div>
-          <input type="range" id="obj-scale" min="0.1" max="5" step="0.1" value="1.0" onchange="updateSelected('scale', this.value); document.getElementById('scale-val').textContent=this.value">
-        </div>
-        <div class="toggle-row">
+
+        <div class="toggle-row" style="margin-top:8px;">
           <span class="toggle-label">IDLE ANIMATION</span>
           <div class="toggle on" id="toggle-anim-obj" onclick="updateSelected('animate', null, this)"></div>
         </div>
@@ -814,6 +877,9 @@ let cinematicAngle = 0;
 let lightOrbitAngle = 0;
 let panelVisible = true;
 
+// Drag state (declared early so orbit controls can reference)
+let isDraggingObject = false;
+
 function init() {
   // Scene
   scene = new THREE.Scene();
@@ -863,7 +929,9 @@ function init() {
 
   // Events
   window.addEventListener('resize', onResize);
-  renderer.domElement.addEventListener('click', onSceneClick);
+  renderer.domElement.addEventListener('mousedown', onCanvasMouseDown);
+  window.addEventListener('mousemove', onCanvasMouseMove);
+  window.addEventListener('mouseup', onCanvasMouseUp);
 
   // Load URL state
   loadFromURL();
@@ -883,6 +951,8 @@ let panOffset = new THREE.Vector3();
 function initOrbitControls() {
   const el = renderer.domElement;
   el.addEventListener('mousedown', e => {
+    // Don't orbit if we're dragging an object
+    if (isDraggingObject) return;
     orbitState.active = true;
     orbitState.button = e.button;
     if (e.button === 0) orbitState.rotateStart.set(e.clientX, e.clientY);
@@ -1125,25 +1195,68 @@ function updateObjectsList() {
   });
 }
 
+let uniformScale = true;
+
+function toggleUniformScale(el) {
+  uniformScale = !uniformScale;
+  el.classList.toggle('on', uniformScale);
+  document.getElementById('uniform-scale-row').style.display = uniformScale ? 'block' : 'none';
+  document.getElementById('axis-scale-rows').style.display = uniformScale ? 'none' : 'block';
+}
+
 function selectObject(obj) {
   selectedObject = obj;
   updateObjectsList();
   const el = document.getElementById('selected-controls');
   el.style.display = 'block';
   document.getElementById('selected-label').textContent = `SELECTED: ${obj.userData.type.toUpperCase()} #${obj.userData.id}`;
-  document.getElementById('obj-color').value = '#' + obj.material.color.getHexString();
+
+  // Color
+  if (obj.material && obj.material.color) {
+    document.getElementById('obj-color').value = '#' + obj.material.color.getHexString();
+  }
+
+  // Position
+  const pos = obj.position;
+  document.getElementById('obj-pos-x').value = pos.x;
+  document.getElementById('pos-x-val').textContent = pos.x.toFixed(1);
+  document.getElementById('obj-pos-y').value = pos.y;
+  document.getElementById('pos-y-val').textContent = pos.y.toFixed(1);
+  document.getElementById('obj-pos-z').value = pos.z;
+  document.getElementById('pos-z-val').textContent = pos.z.toFixed(1);
+
+  // Rotation (radians to degrees)
+  document.getElementById('obj-rot-x').value = Math.round(THREE.MathUtils.radToDeg(obj.rotation.x) + 360) % 360;
+  document.getElementById('rot-x-val').textContent = document.getElementById('obj-rot-x').value + '°';
+  document.getElementById('obj-rot-y').value = Math.round(THREE.MathUtils.radToDeg(obj.rotation.y) + 360) % 360;
+  document.getElementById('rot-y-val').textContent = document.getElementById('obj-rot-y').value + '°';
+  document.getElementById('obj-rot-z').value = Math.round(THREE.MathUtils.radToDeg(obj.rotation.z) + 360) % 360;
+  document.getElementById('rot-z-val').textContent = document.getElementById('obj-rot-z').value + '°';
+
+  // Scale
   document.getElementById('obj-scale').value = obj.scale.x;
   document.getElementById('scale-val').textContent = obj.scale.x.toFixed(1);
+  document.getElementById('obj-scale-x').value = obj.scale.x;
+  document.getElementById('scale-x-val').textContent = obj.scale.x.toFixed(1);
+  document.getElementById('obj-scale-y').value = obj.scale.y;
+  document.getElementById('scale-y-val').textContent = obj.scale.y.toFixed(1);
+  document.getElementById('obj-scale-z').value = obj.scale.z;
+  document.getElementById('scale-z-val').textContent = obj.scale.z.toFixed(1);
+
+  // Animation toggle
+  document.getElementById('toggle-anim-obj').classList.toggle('on', obj.userData.animate);
 }
 
 function updateSelected(prop, value, toggleEl) {
   if (!selectedObject) return;
+  const v = parseFloat(value);
+
   if (prop === 'color') {
     selectedObject.material.color.set(value);
   } else if (prop === 'material') {
-    const c = selectedObject.material.color.clone();
-    const r = selectedObject.material.roughness;
-    const m = selectedObject.material.metalness;
+    const c = selectedObject.material.color ? selectedObject.material.color.clone() : new THREE.Color('#ffffff');
+    const r = selectedObject.material.roughness || 0.5;
+    const m = selectedObject.material.metalness || 0.1;
     selectedObject.material.dispose();
     if (value === 'wireframe') {
       selectedObject.material = new THREE.MeshBasicMaterial({ color: c, wireframe: true });
@@ -1157,12 +1270,31 @@ function updateSelected(prop, value, toggleEl) {
       selectedObject.material = new THREE.MeshStandardMaterial({ color: c, roughness: r, metalness: m });
     }
   } else if (prop === 'roughness') {
-    if (selectedObject.material.roughness !== undefined) selectedObject.material.roughness = parseFloat(value);
+    if (selectedObject.material.roughness !== undefined) selectedObject.material.roughness = v;
   } else if (prop === 'metalness') {
-    if (selectedObject.material.metalness !== undefined) selectedObject.material.metalness = parseFloat(value);
+    if (selectedObject.material.metalness !== undefined) selectedObject.material.metalness = v;
   } else if (prop === 'scale') {
-    const s = parseFloat(value);
-    selectedObject.scale.set(s, s, s);
+    selectedObject.scale.set(v, v, v);
+  } else if (prop === 'scaleX') {
+    selectedObject.scale.x = v;
+  } else if (prop === 'scaleY') {
+    selectedObject.scale.y = v;
+  } else if (prop === 'scaleZ') {
+    selectedObject.scale.z = v;
+  } else if (prop === 'posX') {
+    selectedObject.position.x = v;
+    selectedObject.userData.baseY = undefined;
+  } else if (prop === 'posY') {
+    selectedObject.position.y = v;
+    selectedObject.userData.baseY = v;
+  } else if (prop === 'posZ') {
+    selectedObject.position.z = v;
+  } else if (prop === 'rotX') {
+    selectedObject.rotation.x = THREE.MathUtils.degToRad(v);
+  } else if (prop === 'rotY') {
+    selectedObject.rotation.y = THREE.MathUtils.degToRad(v);
+  } else if (prop === 'rotZ') {
+    selectedObject.rotation.z = THREE.MathUtils.degToRad(v);
   } else if (prop === 'animate') {
     selectedObject.userData.animate = !selectedObject.userData.animate;
     toggleEl.classList.toggle('on', selectedObject.userData.animate);
@@ -1189,30 +1321,124 @@ function removeSelected() {
 }
 
 // ============================================================
-// CLICK INTERACTION
+// CLICK + DRAG INTERACTION
 // ============================================================
 
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
+const dragPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+const dragIntersect = new THREE.Vector3();
+const dragOffset = new THREE.Vector3();
 
-function onSceneClick(e) {
+// isDraggingObject declared above with scene vars
+let dragTarget = null;
+let mouseDownPos = new THREE.Vector2();
+let didDrag = false;
+
+function getMouseNDC(e) {
   const rect = renderer.domElement.getBoundingClientRect();
-  mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-  mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+  return new THREE.Vector2(
+    ((e.clientX - rect.left) / rect.width) * 2 - 1,
+    -((e.clientY - rect.top) / rect.height) * 2 + 1
+  );
+}
 
-  raycaster.setFromCamera(mouse, camera);
-  const hits = raycaster.intersectObjects(sceneObjects);
+function onCanvasMouseDown(e) {
+  if (e.button !== 0) return; // only left click
 
+  mouseDownPos.set(e.clientX, e.clientY);
+  didDrag = false;
+  const ndc = getMouseNDC(e);
+  raycaster.setFromCamera(ndc, camera);
+
+  // Check if we hit a scene object
+  const hits = raycaster.intersectObjects(sceneObjects, true);
   if (hits.length > 0) {
-    const obj = hits[0].object;
-    selectObject(obj);
+    // Find the root scene object (for GLB models which are groups)
+    let hitObj = hits[0].object;
+    let rootObj = sceneObjects.find(o => o === hitObj || (o.children && o.traverse && hitObj.parent === o));
+    if (!rootObj) {
+      // Walk up parents to find a registered scene object
+      let p = hitObj;
+      while (p) {
+        if (sceneObjects.includes(p)) { rootObj = p; break; }
+        p = p.parent;
+      }
+    }
+    if (!rootObj) rootObj = hitObj;
 
-    // Trigger click animation - pulse scale
-    const orig = obj.scale.x;
-    obj.userData.clickAnim = { t: 0, orig };
+    isDraggingObject = true;
+    dragTarget = rootObj;
 
-    // Ripple
-    spawnRipple(e.clientX, e.clientY);
+    // Set drag plane at object's Y level
+    dragPlane.set(new THREE.Vector3(0, 1, 0), -rootObj.position.y);
+    raycaster.ray.intersectPlane(dragPlane, dragIntersect);
+    dragOffset.copy(rootObj.position).sub(dragIntersect);
+
+    // Prevent orbit from starting
+    orbitState.active = false;
+    document.getElementById('canvas-container').classList.add('dragging');
+    e.preventDefault();
+    e.stopPropagation();
+  }
+}
+
+function onCanvasMouseMove(e) {
+  // Hover cursor feedback
+  if (!isDraggingObject) {
+    const ndc = getMouseNDC(e);
+    raycaster.setFromCamera(ndc, camera);
+    const hits = raycaster.intersectObjects(sceneObjects, true);
+    const container = document.getElementById('canvas-container');
+    if (hits.length > 0) {
+      container.classList.add('hovering');
+    } else {
+      container.classList.remove('hovering');
+    }
+  }
+
+  if (!isDraggingObject || !dragTarget) return;
+
+  const dx = e.clientX - mouseDownPos.x;
+  const dy = e.clientY - mouseDownPos.y;
+  if (Math.abs(dx) > 3 || Math.abs(dy) > 3) didDrag = true;
+
+  const ndc = getMouseNDC(e);
+  raycaster.setFromCamera(ndc, camera);
+  raycaster.ray.intersectPlane(dragPlane, dragIntersect);
+
+  dragTarget.position.x = dragIntersect.x + dragOffset.x;
+  dragTarget.position.z = dragIntersect.z + dragOffset.z;
+
+  // Update baseY so idle animation doesn't fight with position
+  dragTarget.userData.baseY = dragTarget.position.y;
+
+  // Update panel sliders if this is the selected object
+  if (dragTarget === selectedObject) {
+    document.getElementById('obj-pos-x').value = dragTarget.position.x;
+    document.getElementById('pos-x-val').textContent = dragTarget.position.x.toFixed(1);
+    document.getElementById('obj-pos-z').value = dragTarget.position.z;
+    document.getElementById('pos-z-val').textContent = dragTarget.position.z.toFixed(1);
+  }
+}
+
+function onCanvasMouseUp(e) {
+  if (isDraggingObject && dragTarget) {
+    document.getElementById('canvas-container').classList.remove('dragging');
+
+    if (!didDrag) {
+      // It was a click, not a drag — select the object
+      selectObject(dragTarget);
+      const orig = dragTarget.scale.x;
+      dragTarget.userData.clickAnim = { t: 0, orig };
+      spawnRipple(e.clientX, e.clientY);
+    } else {
+      // After drag, make sure it's selected
+      if (dragTarget !== selectedObject) selectObject(dragTarget);
+    }
+
+    isDraggingObject = false;
+    dragTarget = null;
   }
 }
 
