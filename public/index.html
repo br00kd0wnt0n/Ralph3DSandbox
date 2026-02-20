@@ -629,6 +629,26 @@ function updateObjectsList(){
   });
 }
 
+// Helper: get all meshes inside an object (works for single Mesh or Group/GLB)
+function getMeshes(obj){
+  const meshes=[];
+  if(obj.isMesh)meshes.push(obj);
+  else obj.traverse(child=>{if(child.isMesh)meshes.push(child);});
+  return meshes;
+}
+// Helper: get the first material color found
+function getFirstColor(obj){
+  const meshes=getMeshes(obj);
+  for(const m of meshes){if(m.material&&m.material.color)return'#'+m.material.color.getHexString();}
+  return'#e8ff47';
+}
+// Helper: get first roughness/metalness
+function getFirstProp(obj,prop){
+  const meshes=getMeshes(obj);
+  for(const m of meshes){if(m.material&&m.material[prop]!==undefined)return m.material[prop];}
+  return prop==='roughness'?0.5:0.1;
+}
+
 function selectObject(obj){
   selectedObject=obj;updateObjectsList();
   document.getElementById('selected-controls').style.display='block';
@@ -647,40 +667,53 @@ function selectObject(obj){
   const rotDeg=Math.round(THREE.MathUtils.radToDeg(obj.rotation.y)%360+360)%360;
   document.getElementById('obj-rot-y').value=rotDeg;
   document.getElementById('rot-y-val').textContent=rotDeg+'°';
-  // Material
-  if(obj.material&&obj.material.color)document.getElementById('obj-color').value='#'+obj.material.color.getHexString();
-  if(obj.material&&obj.material.roughness!==undefined){document.getElementById('obj-rough').value=obj.material.roughness;document.getElementById('rough-val').textContent=obj.material.roughness;}
-  if(obj.material&&obj.material.metalness!==undefined){document.getElementById('obj-metal').value=obj.material.metalness;document.getElementById('metal-val').textContent=obj.material.metalness;}
+  // Material — read from first mesh child
+  document.getElementById('obj-color').value=getFirstColor(obj);
+  const rough=getFirstProp(obj,'roughness');
+  document.getElementById('obj-rough').value=rough;document.getElementById('rough-val').textContent=rough;
+  const metal=getFirstProp(obj,'metalness');
+  document.getElementById('obj-metal').value=metal;document.getElementById('metal-val').textContent=metal;
   // Animation toggle
   document.getElementById('toggle-anim-obj').classList.toggle('on',obj.userData.animate!==false);
 }
 
+function makeMaterial(type,color){
+  const c=color instanceof THREE.Color?color:new THREE.Color(color||0xffffff);
+  if(type==='wireframe')return new THREE.MeshBasicMaterial({color:c,wireframe:true});
+  if(type==='normal')return new THREE.MeshNormalMaterial();
+  if(type==='glass')return new THREE.MeshPhysicalMaterial({color:c,transmission:0.9,transparent:true,roughness:0.05,metalness:0});
+  if(type==='phong')return new THREE.MeshPhongMaterial({color:c,shininess:100});
+  if(type==='emissive')return new THREE.MeshStandardMaterial({color:c,emissive:c,emissiveIntensity:1.5,roughness:0.3,metalness:0.2});
+  return new THREE.MeshStandardMaterial({color:c,roughness:0.5,metalness:0.1});
+}
+
 function updateSelected(prop,value,toggleEl){
   if(!selectedObject)return;
+  const meshes=getMeshes(selectedObject);
   if(prop==='posX'){selectedObject.position.x=parseFloat(value);}
   else if(prop==='posY'){selectedObject.position.y=parseFloat(value);selectedObject.userData.baseY=parseFloat(value);}
   else if(prop==='posZ'){selectedObject.position.z=parseFloat(value);}
   else if(prop==='rotY'){selectedObject.rotation.y=THREE.MathUtils.degToRad(parseFloat(value));}
-  else if(prop==='color'){selectedObject.material.color.set(value);if(selectedObject.material.emissive)selectedObject.material.emissive.set(value);}
-  else if(prop==='material'){
-    const c=selectedObject.material.color?selectedObject.material.color.clone():new THREE.Color(0xffffff);
-    selectedObject.material.dispose();
-    if(value==='wireframe')selectedObject.material=new THREE.MeshBasicMaterial({color:c,wireframe:true});
-    else if(value==='normal')selectedObject.material=new THREE.MeshNormalMaterial();
-    else if(value==='glass')selectedObject.material=new THREE.MeshPhysicalMaterial({color:c,transmission:0.9,transparent:true,roughness:0.05,metalness:0});
-    else if(value==='phong')selectedObject.material=new THREE.MeshPhongMaterial({color:c,shininess:100});
-    else if(value==='emissive')selectedObject.material=new THREE.MeshStandardMaterial({color:c,emissive:c,emissiveIntensity:1.5,roughness:0.3,metalness:0.2});
-    else selectedObject.material=new THREE.MeshStandardMaterial({color:c,roughness:0.5,metalness:0.1});
+  else if(prop==='color'){
+    meshes.forEach(m=>{if(m.material.color)m.material.color.set(value);if(m.material.emissive)m.material.emissive.set(value);});
   }
-  else if(prop==='roughness'&&selectedObject.material.roughness!==undefined)selectedObject.material.roughness=parseFloat(value);
-  else if(prop==='metalness'&&selectedObject.material.metalness!==undefined)selectedObject.material.metalness=parseFloat(value);
+  else if(prop==='material'){
+    meshes.forEach(m=>{
+      const c=m.material.color?m.material.color.clone():new THREE.Color(0xffffff);
+      m.material.dispose();
+      m.material=makeMaterial(value,c);
+    });
+  }
+  else if(prop==='roughness'){const v=parseFloat(value);meshes.forEach(m=>{if(m.material.roughness!==undefined)m.material.roughness=v;});}
+  else if(prop==='metalness'){const v=parseFloat(value);meshes.forEach(m=>{if(m.material.metalness!==undefined)m.material.metalness=v;});}
   else if(prop==='scale'){const s=parseFloat(value);selectedObject.scale.set(s,s,s);}
   else if(prop==='animate'){selectedObject.userData.animate=!selectedObject.userData.animate;toggleEl.classList.toggle('on',selectedObject.userData.animate);}
 }
 
 function removeObject(id){
   const idx=sceneObjects.findIndex(o=>o.userData.id===id);if(idx===-1)return;
-  const obj=sceneObjects[idx];scene.remove(obj);obj.geometry.dispose();obj.material.dispose();
+  const obj=sceneObjects[idx];scene.remove(obj);
+  obj.traverse(child=>{if(child.geometry)child.geometry.dispose();if(child.material){if(Array.isArray(child.material))child.material.forEach(m=>m.dispose());else child.material.dispose();}});
   sceneObjects.splice(idx,1);
   if(selectedObject===obj){selectedObject=null;document.getElementById('selected-controls').style.display='none';}
   updateObjectsList();
