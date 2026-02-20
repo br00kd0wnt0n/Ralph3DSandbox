@@ -4,752 +4,225 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>RALPH 3D SANDBOX</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/FilmShader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/BokehShader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/EffectComposer.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/FilmPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/BokehPass.js"></script>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap');
-
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-  :root {
-    --bg: #0a0a0c;
-    --panel: #111115;
-    --border: #2a2a35;
-    --accent: #e8ff47;
-    --accent2: #ff4d8f;
-    --accent3: #4dfff3;
-    --text: #e0e0e8;
-    --muted: #555568;
-    --panel-w: 300px;
-  }
-
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: 'DM Sans', sans-serif;
-    overflow: hidden;
-    height: 100vh;
-    width: 100vw;
-  }
-
-  #canvas-container {
-    position: fixed;
-    inset: 0;
-    z-index: 0;
-  }
-
-  #canvas-container canvas {
-    width: 100% !important;
-    height: 100% !important;
-  }
-
-  /* HEADER */
-  #header {
-    position: fixed;
-    top: 0; left: 0; right: 0;
-    z-index: 100;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 12px 20px;
-    background: linear-gradient(to bottom, rgba(10,10,12,0.95), transparent);
-    pointer-events: none;
-  }
-
-  #header-title {
-    font-family: 'Bebas Neue', sans-serif;
-    font-size: 22px;
-    letter-spacing: 3px;
-    color: var(--accent);
-  }
-
-  #header-sub {
-    font-family: 'Space Mono', monospace;
-    font-size: 10px;
-    color: var(--muted);
-    letter-spacing: 1px;
-  }
-
-  /* PANEL TOGGLE */
-  #panel-toggle {
-    position: fixed;
-    top: 14px;
-    right: 20px;
-    z-index: 200;
-    background: var(--accent);
-    color: var(--bg);
-    border: none;
-    font-family: 'Space Mono', monospace;
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 1px;
-    padding: 8px 14px;
-    cursor: pointer;
-    transition: all 0.2s;
-    pointer-events: all;
-  }
-
-  #panel-toggle:hover { background: var(--accent3); }
-
-  /* CONTROL PANEL */
-  #control-panel {
-    position: fixed;
-    top: 0;
-    right: 0;
-    width: var(--panel-w);
-    height: 100vh;
-    background: var(--panel);
-    border-left: 1px solid var(--border);
-    z-index: 150;
-    overflow-y: scroll;
-    -webkit-overflow-scrolling: touch;
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-
-  #control-panel.hidden {
-    transform: translateX(100%);
-  }
-
-  #control-panel::-webkit-scrollbar { width: 3px; }
-  #control-panel::-webkit-scrollbar-track { background: var(--bg); }
-  #control-panel::-webkit-scrollbar-thumb { background: var(--border); }
-
-  .panel-header {
-    padding: 52px 20px 16px;
-    border-bottom: 1px solid var(--border);
-    position: sticky;
-    top: 0;
-    background: var(--panel);
-    z-index: 10;
-  }
-
-  .panel-header h2 {
-    font-family: 'Bebas Neue', sans-serif;
-    font-size: 18px;
-    letter-spacing: 2px;
-    color: var(--accent);
-    margin-bottom: 4px;
-  }
-
-  .panel-header p {
-    font-size: 11px;
-    color: var(--muted);
-    font-family: 'Space Mono', monospace;
-  }
-
-  /* SECTIONS */
-  .section {
-    border-bottom: 1px solid var(--border);
-    overflow: hidden;
-  }
-
-  .section-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 12px 20px;
-    cursor: pointer;
-    user-select: none;
-    transition: background 0.15s;
-  }
-
-  .section-header:hover { background: rgba(255,255,255,0.02); }
-
-  .section-header span {
-    font-family: 'Space Mono', monospace;
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 2px;
-    color: var(--muted);
-    text-transform: uppercase;
-  }
-
-  .section-header .arrow {
-    font-size: 10px;
-    color: var(--muted);
-    transition: transform 0.2s;
-  }
-
-  .section-header.open .arrow { transform: rotate(180deg); }
-  .section-header.open span { color: var(--accent); }
-
-  .section-body {
-    padding: 0 20px 16px;
-    display: none;
-  }
-
-  .section-body.open { display: block; }
-
-  /* CONTROLS */
-  .control-row {
-    margin-bottom: 14px;
-  }
-
-  .control-label {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 6px;
-    font-size: 11px;
-    color: var(--muted);
-    font-family: 'Space Mono', monospace;
-  }
-
-  .control-label .val {
-    color: var(--accent3);
-    font-size: 10px;
-  }
-
-  input[type="range"] {
-    width: 100%;
-    appearance: none;
-    height: 2px;
-    background: var(--border);
-    outline: none;
-    cursor: pointer;
-  }
-
-  input[type="range"]::-webkit-slider-thumb {
-    appearance: none;
-    width: 12px;
-    height: 12px;
-    background: var(--accent);
-    cursor: pointer;
-    border-radius: 0;
-  }
-
-  input[type="range"]:hover { background: var(--muted); }
-
-  input[type="color"] {
-    width: 100%;
-    height: 32px;
-    border: 1px solid var(--border);
-    background: var(--bg);
-    cursor: pointer;
-    padding: 2px;
-  }
-
-  input[type="text"], input[type="file"], select, textarea {
-    width: 100%;
-    background: var(--bg);
-    border: 1px solid var(--border);
-    color: var(--text);
-    font-family: 'Space Mono', monospace;
-    font-size: 11px;
-    padding: 8px 10px;
-    outline: none;
-    transition: border-color 0.2s;
-  }
-
-  input[type="text"]:focus, textarea:focus { border-color: var(--accent); }
-  input[type="file"] { padding: 6px; cursor: pointer; font-size: 10px; }
-
-  select {
-    cursor: pointer;
-    appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23555568'/%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right 10px center;
-    padding-right: 28px;
-  }
-
-  /* BUTTONS */
-  .btn-row {
-    display: flex;
-    gap: 8px;
-    margin-bottom: 10px;
-  }
-
-  .btn {
-    flex: 1;
-    padding: 8px 10px;
-    border: 1px solid var(--border);
-    background: transparent;
-    color: var(--muted);
-    font-family: 'Space Mono', monospace;
-    font-size: 9px;
-    letter-spacing: 1px;
-    cursor: pointer;
-    transition: all 0.15s;
-    text-transform: uppercase;
-  }
-
-  .btn:hover, .btn.active {
-    border-color: var(--accent);
-    color: var(--accent);
-    background: rgba(232, 255, 71, 0.05);
-  }
-
-  .btn.accent {
-    background: var(--accent);
-    color: var(--bg);
-    border-color: var(--accent);
-    font-weight: 700;
-  }
-
-  .btn.accent:hover {
-    background: var(--accent3);
-    border-color: var(--accent3);
-    color: var(--bg);
-  }
-
-  .btn.danger:hover {
-    border-color: var(--accent2);
-    color: var(--accent2);
-    background: rgba(255,77,143,0.05);
-  }
-
-  /* TOGGLE */
-  .toggle-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 12px;
-  }
-
-  .toggle-label {
-    font-family: 'Space Mono', monospace;
-    font-size: 10px;
-    color: var(--muted);
-    letter-spacing: 1px;
-  }
-
-  .toggle {
-    width: 32px;
-    height: 16px;
-    background: var(--border);
-    border-radius: 0;
-    position: relative;
-    cursor: pointer;
-    transition: background 0.2s;
-  }
-
-  .toggle.on { background: var(--accent); }
-
-  .toggle::after {
-    content: '';
-    position: absolute;
-    width: 12px;
-    height: 12px;
-    background: var(--bg);
-    top: 2px;
-    left: 2px;
-    transition: transform 0.2s;
-  }
-
-  .toggle.on::after { transform: translateX(16px); }
-
-  /* OBJECTS LIST */
-  .object-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 7px 10px;
-    border: 1px solid var(--border);
-    margin-bottom: 6px;
-    font-family: 'Space Mono', monospace;
-    font-size: 10px;
-    cursor: pointer;
-    transition: all 0.15s;
-  }
-
-  .object-item:hover { border-color: var(--accent3); color: var(--accent3); }
-  .object-item.selected { border-color: var(--accent); color: var(--accent); }
-
-  .object-item .obj-type {
-    color: var(--muted);
-    font-size: 9px;
-  }
-
-  .object-remove {
-    color: var(--muted);
-    cursor: pointer;
-    padding: 2px 5px;
-    transition: color 0.15s;
-  }
-
-  .object-remove:hover { color: var(--accent2); }
-
-  /* SHARE TOAST */
-  #share-toast {
-    position: fixed;
-    bottom: 30px;
-    left: 50%;
-    transform: translateX(-50%) translateY(80px);
-    background: var(--accent);
-    color: var(--bg);
-    font-family: 'Space Mono', monospace;
-    font-size: 11px;
-    font-weight: 700;
-    padding: 12px 24px;
-    letter-spacing: 1px;
-    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-    z-index: 500;
-    pointer-events: none;
-  }
-
-  #share-toast.show { transform: translateX(-50%) translateY(0); }
-
-  /* CAMERA MODE INDICATOR */
-  #cam-indicator {
-    position: fixed;
-    bottom: 20px;
-    left: 20px;
-    font-family: 'Space Mono', monospace;
-    font-size: 10px;
-    color: var(--muted);
-    letter-spacing: 2px;
-    z-index: 100;
-    pointer-events: none;
-  }
-
-  #cam-indicator span {
-    color: var(--accent3);
-    font-weight: 700;
-  }
-
-  /* PERF INDICATOR */
-  #perf {
-    position: fixed;
-    bottom: 38px;
-    left: 20px;
-    font-family: 'Space Mono', monospace;
-    font-size: 9px;
-    color: var(--muted);
-    z-index: 100;
-    pointer-events: none;
-  }
-
-  /* WATERMARK */
-  #watermark {
-    position: fixed;
-    bottom: 20px;
-    right: calc(var(--panel-w) + 20px);
-    font-family: 'Bebas Neue', sans-serif;
-    font-size: 13px;
-    letter-spacing: 3px;
-    color: rgba(255,255,255,0.06);
-    z-index: 100;
-    pointer-events: none;
-    transition: right 0.3s;
-  }
-
-  #watermark.panel-hidden { right: 20px; }
-
-  /* HELP */
-  #help-bar {
-    position: fixed;
-    top: 50%;
-    left: 20px;
-    transform: translateY(-50%);
-    font-family: 'Space Mono', monospace;
-    font-size: 9px;
-    color: var(--muted);
-    line-height: 2;
-    letter-spacing: 1px;
-    z-index: 100;
-    pointer-events: none;
-  }
-
-  #help-bar div::before {
-    content: '— ';
-    color: var(--border);
-  }
-
-  /* CLICK RIPPLE */
-  .ripple {
-    position: fixed;
-    width: 20px;
-    height: 20px;
-    border: 2px solid var(--accent);
-    border-radius: 50%;
-    pointer-events: none;
-    z-index: 400;
-    animation: ripple-out 0.5s ease-out forwards;
-    transform: translate(-50%, -50%);
-  }
-
-  @keyframes ripple-out {
-    to { width: 60px; height: 60px; opacity: 0; }
-  }
-
-  /* DRAG CURSOR */
-  #canvas-container.dragging canvas { cursor: grabbing !important; }
-  #canvas-container.hovering canvas { cursor: grab !important; }
-
-  /* Scrollbar for panel on firefox */
-  #control-panel { scrollbar-width: thin; scrollbar-color: var(--border) var(--bg); }
+@import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#0a0a0c;--panel:#111115;--border:#2a2a35;--accent:#e8ff47;--accent2:#ff4d8f;--accent3:#4dfff3;--text:#e0e0e8;--muted:#555568;--panel-w:300px}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;overflow:hidden;height:100vh;width:100vw}
+#canvas-container{position:fixed;inset:0;z-index:0}
+#canvas-container canvas{width:100%!important;height:100%!important}
+#header{position:fixed;top:0;left:0;right:0;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:12px 20px;background:linear-gradient(to bottom,rgba(10,10,12,0.95),transparent);pointer-events:none}
+#header-title{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:3px;color:var(--accent)}
+#header-sub{font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);letter-spacing:1px}
+#panel-toggle{position:fixed;top:14px;right:20px;z-index:200;background:var(--accent);color:var(--bg);border:none;font-family:'Space Mono',monospace;font-size:10px;font-weight:700;letter-spacing:1px;padding:8px 14px;cursor:pointer;transition:all .2s}
+#panel-toggle:hover{background:var(--accent3)}
+#control-panel{position:fixed;top:0;right:0;width:var(--panel-w);height:100vh;background:var(--panel);border-left:1px solid var(--border);z-index:150;overflow-y:auto;transition:transform .3s cubic-bezier(.4,0,.2,1);scrollbar-width:thin;scrollbar-color:var(--border) var(--bg)}
+#control-panel.hidden{transform:translateX(100%)}
+#control-panel::-webkit-scrollbar{width:3px}
+#control-panel::-webkit-scrollbar-track{background:var(--bg)}
+#control-panel::-webkit-scrollbar-thumb{background:var(--border)}
+.panel-header{padding:52px 20px 16px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--panel);z-index:10}
+.panel-header h2{font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:2px;color:var(--accent);margin-bottom:4px}
+.panel-header p{font-size:11px;color:var(--muted);font-family:'Space Mono',monospace}
+.section{border-bottom:1px solid var(--border);overflow:hidden}
+.section-header{display:flex;align-items:center;justify-content:space-between;padding:12px 20px;cursor:pointer;user-select:none;transition:background .15s}
+.section-header:hover{background:rgba(255,255,255,.02)}
+.section-header span{font-family:'Space Mono',monospace;font-size:10px;font-weight:700;letter-spacing:2px;color:var(--muted);text-transform:uppercase}
+.section-header .arrow{font-size:10px;color:var(--muted);transition:transform .2s}
+.section-header.open .arrow{transform:rotate(180deg)}
+.section-header.open span{color:var(--accent)}
+.section-body{padding:0 20px 16px;display:none}
+.section-body.open{display:block}
+.control-row{margin-bottom:14px}
+.control-label{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;font-size:11px;color:var(--muted);font-family:'Space Mono',monospace}
+.control-label .val{color:var(--accent3);font-size:10px}
+input[type=range]{width:100%;appearance:none;height:2px;background:var(--border);outline:none;cursor:pointer}
+input[type=range]::-webkit-slider-thumb{appearance:none;width:12px;height:12px;background:var(--accent);cursor:pointer;border-radius:0}
+input[type=range]:hover{background:var(--muted)}
+input[type=color]{width:100%;height:32px;border:1px solid var(--border);background:var(--bg);cursor:pointer;padding:2px}
+input[type=text],input[type=file],select,textarea{width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:'Space Mono',monospace;font-size:11px;padding:8px 10px;outline:none;transition:border-color .2s}
+input[type=text]:focus,textarea:focus{border-color:var(--accent)}
+input[type=file]{padding:6px;cursor:pointer;font-size:10px}
+select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23555568'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:28px}
+.btn-row{display:flex;gap:8px;margin-bottom:10px}
+.btn{flex:1;padding:8px 10px;border:1px solid var(--border);background:transparent;color:var(--muted);font-family:'Space Mono',monospace;font-size:9px;letter-spacing:1px;cursor:pointer;transition:all .15s;text-transform:uppercase}
+.btn:hover,.btn.active{border-color:var(--accent);color:var(--accent);background:rgba(232,255,71,.05)}
+.btn.accent{background:var(--accent);color:var(--bg);border-color:var(--accent);font-weight:700}
+.btn.accent:hover{background:var(--accent3);border-color:var(--accent3);color:var(--bg)}
+.btn.danger:hover{border-color:var(--accent2);color:var(--accent2);background:rgba(255,77,143,.05)}
+.toggle-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.toggle-label{font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);letter-spacing:1px}
+.toggle{width:32px;height:16px;background:var(--border);position:relative;cursor:pointer;transition:background .2s}
+.toggle.on{background:var(--accent)}
+.toggle::after{content:'';position:absolute;width:12px;height:12px;background:var(--bg);top:2px;left:2px;transition:transform .2s}
+.toggle.on::after{transform:translateX(16px)}
+.object-item{display:flex;align-items:center;justify-content:space-between;padding:7px 10px;border:1px solid var(--border);margin-bottom:6px;font-family:'Space Mono',monospace;font-size:10px;cursor:pointer;transition:all .15s}
+.object-item:hover{border-color:var(--accent3);color:var(--accent3)}
+.object-item.selected{border-color:var(--accent);color:var(--accent)}
+.object-item .obj-type{color:var(--muted);font-size:9px}
+.object-remove{color:var(--muted);cursor:pointer;padding:2px 5px;transition:color .15s}
+.object-remove:hover{color:var(--accent2)}
+.fx-badge{display:inline-block;padding:1px 5px;font-size:8px;font-family:'Space Mono',monospace;letter-spacing:1px;background:rgba(232,255,71,.12);color:var(--accent);margin-left:6px;vertical-align:middle}
+.fx-divider{height:1px;background:var(--border);margin:12px 0}
+.fx-section-title{font-family:'Space Mono',monospace;font-size:9px;color:var(--accent);letter-spacing:2px;margin-bottom:10px}
+#share-toast{position:fixed;bottom:30px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--accent);color:var(--bg);font-family:'Space Mono',monospace;font-size:11px;font-weight:700;padding:12px 24px;letter-spacing:1px;transition:transform .3s cubic-bezier(.34,1.56,.64,1);z-index:500;pointer-events:none}
+#share-toast.show{transform:translateX(-50%) translateY(0)}
+#cam-indicator{position:fixed;bottom:20px;left:20px;font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);letter-spacing:2px;z-index:100;pointer-events:none}
+#cam-indicator span{color:var(--accent3);font-weight:700}
+#perf{position:fixed;bottom:38px;left:20px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);z-index:100;pointer-events:none}
+#watermark{position:fixed;bottom:20px;right:calc(var(--panel-w) + 20px);font-family:'Bebas Neue',sans-serif;font-size:13px;letter-spacing:3px;color:rgba(255,255,255,.06);z-index:100;pointer-events:none;transition:right .3s}
+#watermark.panel-hidden{right:20px}
+#help-bar{position:fixed;top:50%;left:20px;transform:translateY(-50%);font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);line-height:2;letter-spacing:1px;z-index:100;pointer-events:none}
+#help-bar div::before{content:'— ';color:var(--border)}
+.ripple{position:fixed;width:20px;height:20px;border:2px solid var(--accent);border-radius:50%;pointer-events:none;z-index:400;animation:ripple-out .5s ease-out forwards;transform:translate(-50%,-50%)}
+@keyframes ripple-out{to{width:60px;height:60px;opacity:0}}
 </style>
 </head>
 <body>
-
 <div id="canvas-container"></div>
-
 <div id="header">
   <div>
     <div id="header-title">RALPH 3D SANDBOX</div>
-    <div id="header-sub">BRANDED WORLD EXPLORER v0.1</div>
+    <div id="header-sub">BRANDED WORLD EXPLORER v0.2 — ATMOSPHERICS</div>
   </div>
 </div>
-
 <button id="panel-toggle">CONTROLS ▶</button>
-
 <div id="cam-indicator">CAM: <span id="cam-mode-label">ORBIT</span></div>
 <div id="perf"></div>
-
-<div id="help-bar">
-  <div>DRAG to orbit</div>
-  <div>SCROLL to zoom</div>
-  <div>CLICK object to select</div>
-  <div>DRAG object to move</div>
-  <div>RIGHT DRAG pan</div>
-</div>
-
+<div id="help-bar"><div>DRAG to orbit</div><div>SCROLL to zoom</div><div>CLICK objects</div><div>RIGHT DRAG pan</div></div>
 <div id="watermark">RALPH WORLD LAB</div>
 <div id="share-toast">LINK COPIED TO CLIPBOARD</div>
 
-<!-- CONTROL PANEL -->
 <div id="control-panel">
-  <div class="panel-header">
-    <h2>SCENE CONTROLS</h2>
-    <p>Tweak everything. Break things.</p>
+  <div class="panel-header"><h2>SCENE CONTROLS</h2><p>Tweak everything. Break things.</p></div>
+
+  <!-- ATMOSPHERICS -->
+  <div class="section">
+    <div class="section-header open" onclick="toggleSection(this)"><span>Atmospherics <span class="fx-badge">FX</span></span><span class="arrow">▼</span></div>
+    <div class="section-body open">
+      <div class="fx-section-title">BLOOM / GLOW</div>
+      <div class="toggle-row"><span class="toggle-label">ENABLED</span><div class="toggle on" id="toggle-bloom" onclick="toggleFX(this,'bloom')"></div></div>
+      <div class="control-row"><div class="control-label"><span>Strength</span><span class="val" id="bloom-str-val">0.8</span></div><input type="range" id="bloom-strength" min="0" max="3" step="0.05" value="0.8"></div>
+      <div class="control-row"><div class="control-label"><span>Radius</span><span class="val" id="bloom-rad-val">0.4</span></div><input type="range" id="bloom-radius" min="0" max="1" step="0.05" value="0.4"></div>
+      <div class="control-row"><div class="control-label"><span>Threshold</span><span class="val" id="bloom-thr-val">0.3</span></div><input type="range" id="bloom-threshold" min="0" max="1" step="0.05" value="0.3"></div>
+      <div class="fx-divider"></div>
+      <div class="fx-section-title">DEPTH OF FIELD</div>
+      <div class="toggle-row"><span class="toggle-label">ENABLED</span><div class="toggle" id="toggle-dof" onclick="toggleFX(this,'dof')"></div></div>
+      <div class="control-row"><div class="control-label"><span>Focus Distance</span><span class="val" id="dof-focus-val">10</span></div><input type="range" id="dof-focus" min="1" max="30" step="0.5" value="10"></div>
+      <div class="control-row"><div class="control-label"><span>Aperture</span><span class="val" id="dof-apt-val">2e-5</span></div><input type="range" id="dof-aperture" min="0.000001" max="0.0001" step="0.000001" value="0.00002"></div>
+      <div class="control-row"><div class="control-label"><span>Max Blur</span><span class="val" id="dof-blur-val">0.005</span></div><input type="range" id="dof-maxblur" min="0" max="0.02" step="0.0005" value="0.005"></div>
+      <div class="fx-divider"></div>
+      <div class="fx-section-title">FILM GRAIN</div>
+      <div class="toggle-row"><span class="toggle-label">ENABLED</span><div class="toggle on" id="toggle-grain" onclick="toggleFX(this,'grain')"></div></div>
+      <div class="control-row"><div class="control-label"><span>Intensity</span><span class="val" id="grain-int-val">0.15</span></div><input type="range" id="grain-intensity" min="0" max="1" step="0.01" value="0.15"></div>
+      <div class="toggle-row"><span class="toggle-label">SCANLINES</span><div class="toggle" id="toggle-scanlines" onclick="toggleFX(this,'scanlines')"></div></div>
+      <div class="fx-divider"></div>
+      <div class="fx-section-title">VIGNETTE</div>
+      <div class="toggle-row"><span class="toggle-label">ENABLED</span><div class="toggle on" id="toggle-vignette" onclick="toggleFX(this,'vignette')"></div></div>
+      <div class="control-row"><div class="control-label"><span>Darkness</span><span class="val" id="vig-dark-val">0.6</span></div><input type="range" id="vignette-darkness" min="0" max="2" step="0.05" value="0.6"></div>
+      <div class="control-row"><div class="control-label"><span>Offset</span><span class="val" id="vig-off-val">1.0</span></div><input type="range" id="vignette-offset" min="0.1" max="2" step="0.05" value="1.0"></div>
+      <div class="fx-divider"></div>
+      <div class="fx-section-title">CHROMATIC ABERRATION</div>
+      <div class="toggle-row"><span class="toggle-label">ENABLED</span><div class="toggle" id="toggle-chroma" onclick="toggleFX(this,'chroma')"></div></div>
+      <div class="control-row"><div class="control-label"><span>Strength</span><span class="val" id="chroma-str-val">0.003</span></div><input type="range" id="chroma-strength" min="0" max="0.02" step="0.001" value="0.003"></div>
+      <div class="fx-divider"></div>
+      <div class="fx-section-title">DUST PARTICLES</div>
+      <div class="toggle-row"><span class="toggle-label">ENABLED</span><div class="toggle on" id="toggle-dust" onclick="toggleFX(this,'dust')"></div></div>
+      <div class="control-row"><div class="control-label"><span>Count</span><span class="val" id="dust-count-val">400</span></div><input type="range" id="dust-count" min="50" max="2000" step="50" value="400"></div>
+      <div class="control-row"><div class="control-label"><span>Speed</span><span class="val" id="dust-speed-val">0.3</span></div><input type="range" id="dust-speed" min="0.05" max="2" step="0.05" value="0.3"></div>
+      <div class="control-row"><div class="control-label"><span>Size</span><span class="val" id="dust-size-val">0.06</span></div><input type="range" id="dust-size" min="0.01" max="0.3" step="0.01" value="0.06"></div>
+      <div class="control-row"><div class="control-label">Particle Color</div><input type="color" id="dust-color" value="#ffffff"></div>
+    </div>
   </div>
 
   <!-- ENVIRONMENT -->
   <div class="section">
-    <div class="section-header open" onclick="toggleSection(this)">
-      <span>Environment</span><span class="arrow">▼</span>
-    </div>
+    <div class="section-header open" onclick="toggleSection(this)"><span>Environment</span><span class="arrow">▼</span></div>
     <div class="section-body open">
-      <div class="control-row">
-        <div class="control-label">Sky Color</div>
-        <input type="color" id="sky-color" value="#0d0d1a">
-      </div>
-      <div class="control-row">
-        <div class="control-label">Fog Color</div>
-        <input type="color" id="fog-color" value="#0d0d1a">
-      </div>
-      <div class="control-row">
-        <div class="control-label"><span>Fog Density</span><span class="val" id="fog-val">0.02</span></div>
-        <input type="range" id="fog-density" min="0" max="0.1" step="0.002" value="0.02">
-      </div>
-      <div class="control-row">
-        <div class="control-label">Floor Material</div>
-        <select id="floor-material">
-          <option value="grid">Grid</option>
-          <option value="solid">Solid Color</option>
-          <option value="checker">Checker</option>
-          <option value="none">None</option>
-        </select>
-      </div>
-      <div class="control-row">
-        <div class="control-label">Floor Color</div>
-        <input type="color" id="floor-color" value="#111122">
-      </div>
-      <div class="control-row">
-        <div class="control-label"><span>Floor Size</span><span class="val" id="floor-size-val">30</span></div>
-        <input type="range" id="floor-size" min="10" max="100" step="5" value="30">
-      </div>
-      <div class="toggle-row">
-        <span class="toggle-label">GRID HELPER</span>
-        <div class="toggle on" id="toggle-grid" onclick="toggleFeature(this, 'grid')"></div>
-      </div>
-      <div class="toggle-row">
-        <span class="toggle-label">STARS</span>
-        <div class="toggle on" id="toggle-stars" onclick="toggleFeature(this, 'stars')"></div>
-      </div>
+      <div class="control-row"><div class="control-label">Sky Color</div><input type="color" id="sky-color" value="#0d0d1a"></div>
+      <div class="control-row"><div class="control-label">Fog Color</div><input type="color" id="fog-color" value="#0d0d1a"></div>
+      <div class="control-row"><div class="control-label"><span>Fog Density</span><span class="val" id="fog-val">0.02</span></div><input type="range" id="fog-density" min="0" max="0.1" step="0.002" value="0.02"></div>
+      <div class="control-row"><div class="control-label">Floor Material</div><select id="floor-material"><option value="grid">Grid</option><option value="solid">Solid Color</option><option value="checker">Checker</option><option value="none">None</option></select></div>
+      <div class="control-row"><div class="control-label">Floor Color</div><input type="color" id="floor-color" value="#111122"></div>
+      <div class="control-row"><div class="control-label"><span>Floor Size</span><span class="val" id="floor-size-val">30</span></div><input type="range" id="floor-size" min="10" max="100" step="5" value="30"></div>
+      <div class="toggle-row"><span class="toggle-label">GRID HELPER</span><div class="toggle on" id="toggle-grid" onclick="toggleFeature(this,'grid')"></div></div>
+      <div class="toggle-row"><span class="toggle-label">STARS</span><div class="toggle on" id="toggle-stars" onclick="toggleFeature(this,'stars')"></div></div>
     </div>
   </div>
 
   <!-- LIGHTING -->
   <div class="section">
-    <div class="section-header" onclick="toggleSection(this)">
-      <span>Lighting</span><span class="arrow">▼</span>
-    </div>
+    <div class="section-header" onclick="toggleSection(this)"><span>Lighting</span><span class="arrow">▼</span></div>
     <div class="section-body">
-      <div class="control-row">
-        <div class="control-label"><span>Ambient Intensity</span><span class="val" id="amb-val">0.3</span></div>
-        <input type="range" id="amb-intensity" min="0" max="2" step="0.05" value="0.3">
-      </div>
-      <div class="control-row">
-        <div class="control-label">Ambient Color</div>
-        <input type="color" id="amb-color" value="#3344ff">
-      </div>
-      <div class="control-row">
-        <div class="control-label"><span>Point Light Intensity</span><span class="val" id="pt-val">1.5</span></div>
-        <input type="range" id="pt-intensity" min="0" max="5" step="0.1" value="1.5">
-      </div>
-      <div class="control-row">
-        <div class="control-label">Point Light Color</div>
-        <input type="color" id="pt-color" value="#e8ff47">
-      </div>
-      <div class="control-row">
-        <div class="control-label"><span>Pt Light Height</span><span class="val" id="pth-val">5</span></div>
-        <input type="range" id="pt-height" min="0" max="20" step="0.5" value="5">
-      </div>
-      <div class="toggle-row">
-        <span class="toggle-label">POINT LIGHT ORBIT</span>
-        <div class="toggle on" id="toggle-light-orbit" onclick="toggleFeature(this, 'lightOrbit')"></div>
-      </div>
-      <div class="toggle-row">
-        <span class="toggle-label">SHADOWS</span>
-        <div class="toggle" id="toggle-shadows" onclick="toggleFeature(this, 'shadows')"></div>
-      </div>
+      <div class="control-row"><div class="control-label"><span>Ambient Intensity</span><span class="val" id="amb-val">0.3</span></div><input type="range" id="amb-intensity" min="0" max="2" step="0.05" value="0.3"></div>
+      <div class="control-row"><div class="control-label">Ambient Color</div><input type="color" id="amb-color" value="#3344ff"></div>
+      <div class="control-row"><div class="control-label"><span>Point Light Intensity</span><span class="val" id="pt-val">1.5</span></div><input type="range" id="pt-intensity" min="0" max="5" step="0.1" value="1.5"></div>
+      <div class="control-row"><div class="control-label">Point Light Color</div><input type="color" id="pt-color" value="#e8ff47"></div>
+      <div class="control-row"><div class="control-label"><span>Pt Light Height</span><span class="val" id="pth-val">5</span></div><input type="range" id="pt-height" min="0" max="20" step="0.5" value="5"></div>
+      <div class="toggle-row"><span class="toggle-label">POINT LIGHT ORBIT</span><div class="toggle on" id="toggle-light-orbit" onclick="toggleFeature(this,'lightOrbit')"></div></div>
+      <div class="toggle-row"><span class="toggle-label">SHADOWS</span><div class="toggle" id="toggle-shadows" onclick="toggleFeature(this,'shadows')"></div></div>
     </div>
   </div>
 
   <!-- CAMERA -->
   <div class="section">
-    <div class="section-header" onclick="toggleSection(this)">
-      <span>Camera</span><span class="arrow">▼</span>
-    </div>
+    <div class="section-header" onclick="toggleSection(this)"><span>Camera</span><span class="arrow">▼</span></div>
     <div class="section-body">
       <div class="btn-row">
         <button class="btn active" id="cam-orbit" onclick="setCamera('orbit')">ORBIT</button>
         <button class="btn" id="cam-cinematic" onclick="setCamera('cinematic')">CINEMATIC</button>
         <button class="btn" id="cam-auto" onclick="setCamera('auto')">AUTO</button>
       </div>
-      <div class="control-row">
-        <div class="control-label"><span>FOV</span><span class="val" id="fov-val">60</span></div>
-        <input type="range" id="cam-fov" min="20" max="120" step="1" value="60">
-      </div>
-      <div class="control-row">
-        <div class="control-label"><span>Cinematic Speed</span><span class="val" id="cspeed-val">0.3</span></div>
-        <input type="range" id="cam-speed" min="0.05" max="2" step="0.05" value="0.3">
-      </div>
+      <div class="control-row"><div class="control-label"><span>FOV</span><span class="val" id="fov-val">60</span></div><input type="range" id="cam-fov" min="20" max="120" step="1" value="60"></div>
+      <div class="control-row"><div class="control-label"><span>Cinematic Speed</span><span class="val" id="cspeed-val">0.3</span></div><input type="range" id="cam-speed" min="0.05" max="2" step="0.05" value="0.3"></div>
     </div>
   </div>
 
   <!-- OBJECTS -->
   <div class="section">
-    <div class="section-header open" onclick="toggleSection(this)">
-      <span>Objects</span><span class="arrow">▼</span>
-    </div>
+    <div class="section-header open" onclick="toggleSection(this)"><span>Objects</span><span class="arrow">▼</span></div>
     <div class="section-body open">
-      <div class="btn-row">
-        <button class="btn" onclick="addObject('box')">+ BOX</button>
-        <button class="btn" onclick="addObject('sphere')">+ SPHERE</button>
-        <button class="btn" onclick="addObject('cylinder')">+ CYL</button>
-      </div>
-      <div class="btn-row">
-        <button class="btn" onclick="addObject('torus')">+ TORUS</button>
-        <button class="btn" onclick="addObject('cone')">+ CONE</button>
-        <button class="btn" onclick="addObject('plane')">+ PLANE</button>
-      </div>
+      <div class="btn-row"><button class="btn" onclick="addObject('box')">+ BOX</button><button class="btn" onclick="addObject('sphere')">+ SPHERE</button><button class="btn" onclick="addObject('cylinder')">+ CYL</button></div>
+      <div class="btn-row"><button class="btn" onclick="addObject('torus')">+ TORUS</button><button class="btn" onclick="addObject('cone')">+ CONE</button><button class="btn" onclick="addObject('plane')">+ PLANE</button></div>
       <div id="objects-list"></div>
-      <div id="selected-controls" style="display:none; margin-top:12px; border-top:1px solid var(--border); padding-top:12px;">
-        <div style="font-family:Space Mono,monospace; font-size:9px; color:var(--accent); letter-spacing:2px; margin-bottom:10px;" id="selected-label">SELECTED: —</div>
-        <div style="font-family:Space Mono,monospace; font-size:9px; color:var(--accent3); margin-bottom:10px; letter-spacing:0.5px;">
-          CLICK + DRAG objects to move them on the floor
-        </div>
-
-        <!-- POSITION -->
-        <div style="font-family:Space Mono,monospace; font-size:9px; color:var(--muted); letter-spacing:2px; margin-bottom:8px; margin-top:4px;">POSITION</div>
-        <div class="control-row">
-          <div class="control-label"><span>X</span><span class="val" id="pos-x-val">0.0</span></div>
-          <input type="range" id="obj-pos-x" min="-15" max="15" step="0.1" value="0" oninput="updateSelected('posX', this.value); document.getElementById('pos-x-val').textContent=parseFloat(this.value).toFixed(1)">
-        </div>
-        <div class="control-row">
-          <div class="control-label"><span>Y (Height)</span><span class="val" id="pos-y-val">0.5</span></div>
-          <input type="range" id="obj-pos-y" min="0" max="10" step="0.1" value="0.5" oninput="updateSelected('posY', this.value); document.getElementById('pos-y-val').textContent=parseFloat(this.value).toFixed(1)">
-        </div>
-        <div class="control-row">
-          <div class="control-label"><span>Z</span><span class="val" id="pos-z-val">0.0</span></div>
-          <input type="range" id="obj-pos-z" min="-15" max="15" step="0.1" value="0" oninput="updateSelected('posZ', this.value); document.getElementById('pos-z-val').textContent=parseFloat(this.value).toFixed(1)">
-        </div>
-
-        <!-- ROTATION -->
-        <div style="font-family:Space Mono,monospace; font-size:9px; color:var(--muted); letter-spacing:2px; margin-bottom:8px; margin-top:8px;">ROTATION</div>
-        <div class="control-row">
-          <div class="control-label"><span>Rotate X</span><span class="val" id="rot-x-val">0°</span></div>
-          <input type="range" id="obj-rot-x" min="0" max="360" step="1" value="0" oninput="updateSelected('rotX', this.value); document.getElementById('rot-x-val').textContent=this.value+'°'">
-        </div>
-        <div class="control-row">
-          <div class="control-label"><span>Rotate Y</span><span class="val" id="rot-y-val">0°</span></div>
-          <input type="range" id="obj-rot-y" min="0" max="360" step="1" value="0" oninput="updateSelected('rotY', this.value); document.getElementById('rot-y-val').textContent=this.value+'°'">
-        </div>
-        <div class="control-row">
-          <div class="control-label"><span>Rotate Z</span><span class="val" id="rot-z-val">0°</span></div>
-          <input type="range" id="obj-rot-z" min="0" max="360" step="1" value="0" oninput="updateSelected('rotZ', this.value); document.getElementById('rot-z-val').textContent=this.value+'°'">
-        </div>
-
-        <!-- SCALE -->
-        <div style="font-family:Space Mono,monospace; font-size:9px; color:var(--muted); letter-spacing:2px; margin-bottom:8px; margin-top:8px;">SCALE</div>
-        <div class="toggle-row" style="margin-bottom:8px;">
-          <span class="toggle-label">UNIFORM SCALE</span>
-          <div class="toggle on" id="toggle-uniform-scale" onclick="toggleUniformScale(this)"></div>
-        </div>
-        <div class="control-row" id="uniform-scale-row">
-          <div class="control-label"><span>Scale</span><span class="val" id="scale-val">1.0</span></div>
-          <input type="range" id="obj-scale" min="0.1" max="5" step="0.1" value="1.0" oninput="updateSelected('scale', this.value); document.getElementById('scale-val').textContent=parseFloat(this.value).toFixed(1)">
-        </div>
-        <div id="axis-scale-rows" style="display:none;">
-          <div class="control-row">
-            <div class="control-label"><span>Scale X</span><span class="val" id="scale-x-val">1.0</span></div>
-            <input type="range" id="obj-scale-x" min="0.1" max="5" step="0.1" value="1.0" oninput="updateSelected('scaleX', this.value); document.getElementById('scale-x-val').textContent=parseFloat(this.value).toFixed(1)">
-          </div>
-          <div class="control-row">
-            <div class="control-label"><span>Scale Y</span><span class="val" id="scale-y-val">1.0</span></div>
-            <input type="range" id="obj-scale-y" min="0.1" max="5" step="0.1" value="1.0" oninput="updateSelected('scaleY', this.value); document.getElementById('scale-y-val').textContent=parseFloat(this.value).toFixed(1)">
-          </div>
-          <div class="control-row">
-            <div class="control-label"><span>Scale Z</span><span class="val" id="scale-z-val">1.0</span></div>
-            <input type="range" id="obj-scale-z" min="0.1" max="5" step="0.1" value="1.0" oninput="updateSelected('scaleZ', this.value); document.getElementById('scale-z-val').textContent=parseFloat(this.value).toFixed(1)">
-          </div>
-        </div>
-
-        <!-- MATERIAL -->
-        <div style="font-family:Space Mono,monospace; font-size:9px; color:var(--muted); letter-spacing:2px; margin-bottom:8px; margin-top:8px;">MATERIAL</div>
-        <div class="control-row">
-          <div class="control-label">Material Color</div>
-          <input type="color" id="obj-color" value="#e8ff47" onchange="updateSelected('color', this.value)">
-        </div>
-        <div class="control-row">
-          <div class="control-label">Material Type</div>
-          <select id="obj-material" onchange="updateSelected('material', this.value)">
-            <option value="standard">Standard (PBR)</option>
-            <option value="phong">Phong</option>
-            <option value="wireframe">Wireframe</option>
-            <option value="normal">Normal Map</option>
-            <option value="glass">Glass / Transparent</option>
+      <div id="selected-controls" style="display:none;margin-top:12px;border-top:1px solid var(--border);padding-top:12px;">
+        <div style="font-family:Space Mono,monospace;font-size:9px;color:var(--accent);letter-spacing:2px;margin-bottom:10px" id="selected-label">SELECTED: —</div>
+        <div class="control-row"><div class="control-label">Material Color</div><input type="color" id="obj-color" value="#e8ff47" onchange="updateSelected('color',this.value)"></div>
+        <div class="control-row"><div class="control-label">Material Type</div>
+          <select id="obj-material" onchange="updateSelected('material',this.value)">
+            <option value="standard">Standard (PBR)</option><option value="phong">Phong</option>
+            <option value="wireframe">Wireframe</option><option value="normal">Normal Map</option>
+            <option value="glass">Glass</option><option value="emissive">Emissive (Glows)</option>
           </select>
         </div>
-        <div class="control-row">
-          <div class="control-label"><span>Roughness</span><span class="val" id="rough-val">0.5</span></div>
-          <input type="range" id="obj-rough" min="0" max="1" step="0.05" value="0.5" onchange="updateSelected('roughness', this.value); document.getElementById('rough-val').textContent=this.value">
-        </div>
-        <div class="control-row">
-          <div class="control-label"><span>Metalness</span><span class="val" id="metal-val">0.1</span></div>
-          <input type="range" id="obj-metal" min="0" max="1" step="0.05" value="0.1" onchange="updateSelected('metalness', this.value); document.getElementById('metal-val').textContent=this.value">
-        </div>
-
-        <div class="toggle-row" style="margin-top:8px;">
-          <span class="toggle-label">IDLE ANIMATION</span>
-          <div class="toggle on" id="toggle-anim-obj" onclick="updateSelected('animate', null, this)"></div>
-        </div>
-        <button class="btn danger" onclick="removeSelected()" style="width:100%; margin-top:6px;">REMOVE OBJECT</button>
+        <div class="control-row"><div class="control-label"><span>Roughness</span><span class="val" id="rough-val">0.5</span></div><input type="range" id="obj-rough" min="0" max="1" step="0.05" value="0.5" onchange="updateSelected('roughness',this.value);document.getElementById('rough-val').textContent=this.value"></div>
+        <div class="control-row"><div class="control-label"><span>Metalness</span><span class="val" id="metal-val">0.1</span></div><input type="range" id="obj-metal" min="0" max="1" step="0.05" value="0.1" onchange="updateSelected('metalness',this.value);document.getElementById('metal-val').textContent=this.value"></div>
+        <div class="control-row"><div class="control-label"><span>Scale</span><span class="val" id="scale-val">1.0</span></div><input type="range" id="obj-scale" min="0.1" max="5" step="0.1" value="1.0" onchange="updateSelected('scale',this.value);document.getElementById('scale-val').textContent=this.value"></div>
+        <div class="toggle-row"><span class="toggle-label">IDLE ANIMATION</span><div class="toggle on" id="toggle-anim-obj" onclick="updateSelected('animate',null,this)"></div></div>
+        <button class="btn danger" onclick="removeSelected()" style="width:100%;margin-top:6px">REMOVE OBJECT</button>
       </div>
     </div>
   </div>
 
   <!-- PERSONALISATION -->
   <div class="section">
-    <div class="section-header open" onclick="toggleSection(this)">
-      <span>Personalisation</span><span class="arrow">▼</span>
-    </div>
+    <div class="section-header open" onclick="toggleSection(this)"><span>Personalisation</span><span class="arrow">▼</span></div>
     <div class="section-body open">
-      <div class="control-row">
-        <div class="control-label">Name / Text</div>
-        <input type="text" id="personal-name" placeholder="Enter a name..." value="RALPH">
-      </div>
-      <div class="control-row">
-        <div class="control-label">Sign Text Color</div>
-        <input type="color" id="text-color" value="#e8ff47">
-      </div>
-      <div class="control-row">
-        <div class="control-label">Sign Background</div>
-        <input type="color" id="text-bg" value="#0a0a0c">
-      </div>
-      <div class="control-row">
-        <div class="control-label">Font Style</div>
+      <div class="control-row"><div class="control-label">Name / Text</div><input type="text" id="personal-name" placeholder="Enter a name..." value="RALPH"></div>
+      <div class="control-row"><div class="control-label">Sign Text Color</div><input type="color" id="text-color" value="#e8ff47"></div>
+      <div class="control-row"><div class="control-label">Sign Background</div><input type="color" id="text-bg" value="#0a0a0c"></div>
+      <div class="control-row"><div class="control-label">Font Style</div>
         <select id="text-font">
           <option value="bold 80px 'Arial Black'">Impact</option>
           <option value="bold 70px Georgia">Serif Bold</option>
@@ -757,1192 +230,645 @@
           <option value="italic bold 80px Arial">Italic Bold</option>
         </select>
       </div>
-      <button class="btn accent" onclick="updateSign()" style="width:100%; margin-bottom:8px;">UPDATE SIGN</button>
-      <div class="toggle-row">
-        <span class="toggle-label">SHOW SIGN</span>
-        <div class="toggle on" id="toggle-sign" onclick="toggleFeature(this, 'sign')"></div>
-      </div>
+      <button class="btn accent" onclick="updateSign()" style="width:100%;margin-bottom:8px">UPDATE SIGN</button>
+      <div class="toggle-row"><span class="toggle-label">SHOW SIGN</span><div class="toggle on" id="toggle-sign" onclick="toggleFeature(this,'sign')"></div></div>
     </div>
   </div>
 
   <!-- ASSETS -->
   <div class="section">
-    <div class="section-header" onclick="toggleSection(this)">
-      <span>Asset Import</span><span class="arrow">▼</span>
-    </div>
+    <div class="section-header" onclick="toggleSection(this)"><span>Asset Import</span><span class="arrow">▼</span></div>
     <div class="section-body">
-      <div style="font-family:Space Mono,monospace; font-size:9px; color:var(--muted); line-height:1.8; margin-bottom:12px; letter-spacing:0.5px;">
-        Drop in your own assets. PNG becomes a texture on a new plane. GLB loads as a 3D model.
-      </div>
-      <div class="control-row">
-        <div class="control-label">PNG / JPG Texture</div>
-        <input type="file" id="texture-upload" accept=".png,.jpg,.jpeg,.gif,.webp" onchange="loadTexture(this)">
-      </div>
-      <div class="control-row">
-        <div class="control-label">GLB / GLTF Model</div>
-        <input type="file" id="glb-upload" accept=".glb,.gltf" onchange="loadGLB(this)">
-      </div>
-      <div id="asset-status" style="font-family:Space Mono,monospace; font-size:9px; color:var(--accent3); margin-top:8px; min-height:16px;"></div>
+      <div style="font-family:Space Mono,monospace;font-size:9px;color:var(--muted);line-height:1.8;margin-bottom:12px">PNG becomes a textured plane. GLB loads as a 3D model.</div>
+      <div class="control-row"><div class="control-label">PNG / JPG Texture</div><input type="file" id="texture-upload" accept=".png,.jpg,.jpeg,.gif,.webp" onchange="loadTexture(this)"></div>
+      <div class="control-row"><div class="control-label">GLB / GLTF Model</div><input type="file" id="glb-upload" accept=".glb,.gltf" onchange="loadGLB(this)"></div>
+      <div id="asset-status" style="font-family:Space Mono,monospace;font-size:9px;color:var(--accent3);margin-top:8px;min-height:16px"></div>
     </div>
   </div>
 
   <!-- SHARE -->
   <div class="section">
-    <div class="section-header" onclick="toggleSection(this)">
-      <span>Share</span><span class="arrow">▼</span>
-    </div>
+    <div class="section-header" onclick="toggleSection(this)"><span>Share</span><span class="arrow">▼</span></div>
     <div class="section-body">
-      <div style="font-family:Space Mono,monospace; font-size:9px; color:var(--muted); line-height:1.8; margin-bottom:12px;">
-        Encodes current settings into a shareable URL. Recipients see your exact scene.
-      </div>
-      <button class="btn accent" onclick="shareScene()" style="width:100%; margin-bottom:8px;">COPY SCENE LINK</button>
-      <button class="btn" onclick="resetScene()" style="width:100%;">RESET SCENE</button>
+      <div style="font-family:Space Mono,monospace;font-size:9px;color:var(--muted);line-height:1.8;margin-bottom:12px">Encodes scene state into a shareable URL.</div>
+      <button class="btn accent" onclick="shareScene()" style="width:100%;margin-bottom:8px">COPY SCENE LINK</button>
+      <button class="btn" onclick="resetScene()" style="width:100%">RESET SCENE</button>
     </div>
   </div>
 
   <!-- PRESETS -->
   <div class="section">
-    <div class="section-header" onclick="toggleSection(this)">
-      <span>Brand Presets</span><span class="arrow">▼</span>
-    </div>
+    <div class="section-header" onclick="toggleSection(this)"><span>Brand Presets</span><span class="arrow">▼</span></div>
     <div class="section-body">
-      <div style="font-family:Space Mono,monospace; font-size:9px; color:var(--muted); line-height:1.8; margin-bottom:12px;">
-        One-click brand vibes to explore different IP aesthetics.
-      </div>
-      <div class="btn-row">
-        <button class="btn" onclick="applyPreset('neon')">NEON NIGHT</button>
-        <button class="btn" onclick="applyPreset('pastel')">PASTEL POP</button>
-      </div>
-      <div class="btn-row">
-        <button class="btn" onclick="applyPreset('cyber')">CYBER</button>
-        <button class="btn" onclick="applyPreset('warm')">WARM DUSK</button>
-      </div>
-      <div class="btn-row">
-        <button class="btn" onclick="applyPreset('arctic')">ARCTIC</button>
-        <button class="btn" onclick="applyPreset('forest')">FOREST</button>
-      </div>
+      <div style="font-family:Space Mono,monospace;font-size:9px;color:var(--muted);line-height:1.8;margin-bottom:12px">One-click brand vibes. FX settings included.</div>
+      <div class="btn-row"><button class="btn" onclick="applyPreset('neon')">NEON NIGHT</button><button class="btn" onclick="applyPreset('pastel')">PASTEL POP</button></div>
+      <div class="btn-row"><button class="btn" onclick="applyPreset('cyber')">CYBER</button><button class="btn" onclick="applyPreset('warm')">WARM DUSK</button></div>
+      <div class="btn-row"><button class="btn" onclick="applyPreset('arctic')">ARCTIC</button><button class="btn" onclick="applyPreset('forest')">FOREST</button></div>
     </div>
   </div>
-
 </div>
 
-<!-- THREE.JS -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
-
 // ============================================================
-// CORE SCENE SETUP
+// CUSTOM SHADERS
 // ============================================================
-
-let scene, camera, renderer, controls;
-let clock = new THREE.Clock();
-let frameCount = 0, lastFPSTime = 0, fps = 0;
-
-// State
-let state = {
-  sky: '#0d0d1a',
-  fogColor: '#0d0d1a',
-  fogDensity: 0.02,
-  floorMaterial: 'grid',
-  floorColor: '#111122',
-  floorSize: 30,
-  showGrid: true,
-  showStars: true,
-  ambIntensity: 0.3,
-  ambColor: '#3344ff',
-  ptIntensity: 1.5,
-  ptColor: '#e8ff47',
-  ptHeight: 5,
-  lightOrbit: true,
-  shadows: false,
-  cameraMode: 'orbit',
-  fov: 60,
-  camSpeed: 0.3,
-  personalName: 'RALPH',
-  textColor: '#e8ff47',
-  textBg: '#0a0a0c',
-  textFont: "bold 80px 'Arial Black'",
-  showSign: true
+const VignetteShader = {
+  uniforms: { tDiffuse:{value:null}, offset:{value:1.0}, darkness:{value:0.6}, enabled:{value:1.0} },
+  vertexShader: `varying vec2 vUv; void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`,
+  fragmentShader: `uniform sampler2D tDiffuse;uniform float offset;uniform float darkness;uniform float enabled;varying vec2 vUv;
+  void main(){vec4 t=texture2D(tDiffuse,vUv);if(enabled>0.5){vec2 uv=(vUv-vec2(0.5))*vec2(offset);float v=1.0-dot(uv,uv);v=clamp(pow(v,darkness),0.0,1.0);t.rgb*=v;}gl_FragColor=t;}`
+};
+const ChromaShader = {
+  uniforms: { tDiffuse:{value:null}, strength:{value:0.003}, enabled:{value:0.0} },
+  vertexShader: `varying vec2 vUv; void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`,
+  fragmentShader: `uniform sampler2D tDiffuse;uniform float strength;uniform float enabled;varying vec2 vUv;
+  void main(){vec4 t=texture2D(tDiffuse,vUv);if(enabled>0.5){vec2 o=(vUv-0.5)*strength;float r=texture2D(tDiffuse,vUv+o).r;float g=texture2D(tDiffuse,vUv).g;float b=texture2D(tDiffuse,vUv-o).b;t=vec4(r,g,b,t.a);}gl_FragColor=t;}`
 };
 
-// Scene objects registry
-let sceneObjects = [];
-let selectedObject = null;
-let objectIdCounter = 0;
-
-// Special objects
-let floorMesh, gridHelper, starsObj, signMesh, pointLight, ambientLight;
-let cinematicAngle = 0;
-let lightOrbitAngle = 0;
-let panelVisible = true;
-
-// Drag state (declared early so orbit controls can reference)
-let isDraggingObject = false;
-
-function init() {
-  // Scene
-  scene = new THREE.Scene();
-  scene.background = new THREE.Color(state.sky);
-  scene.fog = new THREE.FogExp2(state.fogColor, state.fogDensity);
-
-  // Camera
-  camera = new THREE.PerspectiveCamera(state.fov, window.innerWidth / window.innerHeight, 0.1, 1000);
-  camera.position.set(6, 4, 10);
-  camera.lookAt(0, 0, 0);
-
-  // Renderer
-  renderer = new THREE.WebGLRenderer({ antialias: true });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-  renderer.setSize(window.innerWidth, window.innerHeight);
-  renderer.shadowMap.enabled = false;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-  renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.0;
-  document.getElementById('canvas-container').appendChild(renderer.domElement);
-
-  // OrbitControls — inline implementation
-  initOrbitControls();
-
-  // Lighting
-  ambientLight = new THREE.AmbientLight(state.ambColor, state.ambIntensity);
-  scene.add(ambientLight);
-
-  pointLight = new THREE.PointLight(state.ptColor, state.ptIntensity, 80);
-  pointLight.position.set(3, state.ptHeight, 3);
-  scene.add(pointLight);
-
-  // Hemisphere light for fill
-  const hemi = new THREE.HemisphereLight('#111133', '#001100', 0.2);
-  scene.add(hemi);
-
-  // Build scene
-  buildFloor();
-  buildGrid();
-  buildStars();
-  buildSign();
-
-  // Default objects
-  addObject('box', { x: -2, y: 0.5, z: 0, color: '#4dfff3' });
-  addObject('sphere', { x: 0, y: 0.8, z: 0, color: '#e8ff47' });
-  addObject('torus', { x: 2.2, y: 0.7, z: 0, color: '#ff4d8f' });
-
-  // Events
-  window.addEventListener('resize', onResize);
-  renderer.domElement.addEventListener('mousedown', onCanvasMouseDown);
-  window.addEventListener('mousemove', onCanvasMouseMove);
-  window.addEventListener('mouseup', onCanvasMouseUp);
-
-  // Load URL state
-  loadFromURL();
-
-  animate();
-}
+// ============================================================
+// STATE
+// ============================================================
+let scene,camera,renderer,composer,bloomPass,filmPass,bokehPass,vignettePass,chromaPass;
+let clock=new THREE.Clock(),frameCount=0,lastFPSTime=0;
+let state={
+  sky:'#0d0d1a',fogColor:'#0d0d1a',fogDensity:0.02,
+  floorMaterial:'grid',floorColor:'#111122',floorSize:30,
+  showGrid:true,showStars:true,
+  ambIntensity:0.3,ambColor:'#3344ff',
+  ptIntensity:1.5,ptColor:'#e8ff47',ptHeight:5,
+  lightOrbit:true,shadows:false,
+  cameraMode:'orbit',fov:60,camSpeed:0.3,
+  personalName:'RALPH',textColor:'#e8ff47',textBg:'#0a0a0c',
+  textFont:"bold 80px 'Arial Black'",showSign:true,
+  bloomEnabled:true,bloomStrength:0.8,bloomRadius:0.4,bloomThreshold:0.3,
+  dofEnabled:false,dofFocus:10,dofAperture:0.00002,dofMaxBlur:0.005,
+  grainEnabled:true,grainIntensity:0.15,scanlinesEnabled:false,
+  vignetteEnabled:true,vignetteDarkness:0.6,vignetteOffset:1.0,
+  chromaEnabled:false,chromaStrength:0.003,
+  dustEnabled:true,dustCount:400,dustSpeed:0.3,dustSize:0.06,dustColor:'#ffffff'
+};
+let sceneObjects=[],selectedObject=null,objectIdCounter=0;
+let floorMesh,gridHelper,starsObj,signMesh,dustParticles;
+let pointLight,ambientLight;
+let cinematicAngle=0,lightOrbitAngle=0,panelVisible=true;
 
 // ============================================================
-// ORBIT CONTROLS (inline minimal implementation)
+// ORBIT CONTROLS
 // ============================================================
+let orbitState={active:false,button:-1,rotateStart:new THREE.Vector2(),panStart:new THREE.Vector2()};
+let spherical=new THREE.Spherical(10,Math.PI/4,Math.PI/6);
+let target=new THREE.Vector3();
 
-let orbitState = { active: false, button: -1, rotateStart: new THREE.Vector2(), panStart: new THREE.Vector2(), dollyStart: new THREE.Vector2() };
-let spherical = new THREE.Spherical(10, Math.PI / 4, Math.PI / 6);
-let target = new THREE.Vector3(0, 0, 0);
-let panOffset = new THREE.Vector3();
-
-function initOrbitControls() {
-  const el = renderer.domElement;
-  el.addEventListener('mousedown', e => {
-    // Don't orbit if we're dragging an object
-    if (isDraggingObject) return;
-    orbitState.active = true;
-    orbitState.button = e.button;
-    if (e.button === 0) orbitState.rotateStart.set(e.clientX, e.clientY);
-    if (e.button === 2) orbitState.panStart.set(e.clientX, e.clientY);
-    e.preventDefault();
+function initOrbitControls(){
+  const el=renderer.domElement;
+  el.addEventListener('mousedown',e=>{orbitState.active=true;orbitState.button=e.button;if(e.button===0)orbitState.rotateStart.set(e.clientX,e.clientY);if(e.button===2)orbitState.panStart.set(e.clientX,e.clientY);e.preventDefault();});
+  el.addEventListener('mousemove',e=>{
+    if(!orbitState.active||state.cameraMode!=='orbit')return;
+    if(orbitState.button===0){const dx=(e.clientX-orbitState.rotateStart.x)/window.innerHeight*Math.PI*2;const dy=(e.clientY-orbitState.rotateStart.y)/window.innerHeight*Math.PI;spherical.theta-=dx;spherical.phi=Math.max(0.05,Math.min(Math.PI-0.05,spherical.phi-dy));orbitState.rotateStart.set(e.clientX,e.clientY);}
+    if(orbitState.button===2){const dx=(e.clientX-orbitState.panStart.x)*0.01;const dy=(e.clientY-orbitState.panStart.y)*0.01;const r=new THREE.Vector3();camera.getWorldDirection(r);r.cross(camera.up).normalize().multiplyScalar(-dx);target.add(r).add(camera.up.clone().multiplyScalar(dy));orbitState.panStart.set(e.clientX,e.clientY);}
   });
-  el.addEventListener('mousemove', e => {
-    if (!orbitState.active || state.cameraMode !== 'orbit') return;
-    if (orbitState.button === 0) {
-      const dx = (e.clientX - orbitState.rotateStart.x) / window.innerHeight * Math.PI * 2;
-      const dy = (e.clientY - orbitState.rotateStart.y) / window.innerHeight * Math.PI;
-      spherical.theta -= dx;
-      spherical.phi = Math.max(0.05, Math.min(Math.PI - 0.05, spherical.phi - dy));
-      orbitState.rotateStart.set(e.clientX, e.clientY);
-    }
-    if (orbitState.button === 2) {
-      const dx = (e.clientX - orbitState.panStart.x) * 0.01;
-      const dy = (e.clientY - orbitState.panStart.y) * 0.01;
-      const right = new THREE.Vector3(); camera.getWorldDirection(right);
-      right.cross(camera.up).normalize().multiplyScalar(-dx);
-      const up = camera.up.clone().multiplyScalar(dy);
-      target.add(right).add(up);
-      orbitState.panStart.set(e.clientX, e.clientY);
-    }
-  });
-  el.addEventListener('mouseup', () => { orbitState.active = false; });
-  el.addEventListener('contextmenu', e => e.preventDefault());
-  el.addEventListener('wheel', e => {
-    spherical.radius *= 1 + e.deltaY * 0.001;
-    spherical.radius = Math.max(2, Math.min(100, spherical.radius));
-    e.preventDefault();
-  }, { passive: false });
-
-  // Touch
-  let lastTouchDist = 0;
-  el.addEventListener('touchstart', e => {
-    if (e.touches.length === 1) { orbitState.active = true; orbitState.button = 0; orbitState.rotateStart.set(e.touches[0].clientX, e.touches[0].clientY); }
-    if (e.touches.length === 2) { lastTouchDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY); }
-  }, { passive: true });
-  el.addEventListener('touchmove', e => {
-    if (e.touches.length === 1 && orbitState.active) {
-      const dx = (e.touches[0].clientX - orbitState.rotateStart.x) / window.innerHeight * Math.PI * 2;
-      const dy = (e.touches[0].clientY - orbitState.rotateStart.y) / window.innerHeight * Math.PI;
-      spherical.theta -= dx; spherical.phi = Math.max(0.05, Math.min(Math.PI - 0.05, spherical.phi - dy));
-      orbitState.rotateStart.set(e.touches[0].clientX, e.touches[0].clientY);
-    }
-    if (e.touches.length === 2) {
-      const d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
-      spherical.radius *= lastTouchDist / d;
-      spherical.radius = Math.max(2, Math.min(100, spherical.radius));
-      lastTouchDist = d;
-    }
-  }, { passive: true });
-  el.addEventListener('touchend', () => { orbitState.active = false; });
+  el.addEventListener('mouseup',()=>{orbitState.active=false;});
+  el.addEventListener('contextmenu',e=>e.preventDefault());
+  el.addEventListener('wheel',e=>{spherical.radius*=1+e.deltaY*0.001;spherical.radius=Math.max(2,Math.min(100,spherical.radius));e.preventDefault();},{passive:false});
+  let ltd=0;
+  el.addEventListener('touchstart',e=>{if(e.touches.length===1){orbitState.active=true;orbitState.button=0;orbitState.rotateStart.set(e.touches[0].clientX,e.touches[0].clientY);}if(e.touches.length===2){ltd=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);}},{passive:true});
+  el.addEventListener('touchmove',e=>{if(e.touches.length===1&&orbitState.active){const dx=(e.touches[0].clientX-orbitState.rotateStart.x)/window.innerHeight*Math.PI*2;const dy=(e.touches[0].clientY-orbitState.rotateStart.y)/window.innerHeight*Math.PI;spherical.theta-=dx;spherical.phi=Math.max(0.05,Math.min(Math.PI-0.05,spherical.phi-dy));orbitState.rotateStart.set(e.touches[0].clientX,e.touches[0].clientY);}if(e.touches.length===2){const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);spherical.radius*=ltd/d;spherical.radius=Math.max(2,Math.min(100,spherical.radius));ltd=d;}},{passive:true});
+  el.addEventListener('touchend',()=>{orbitState.active=false;});
 }
 
-function updateOrbitCamera() {
-  const pos = new THREE.Vector3().setFromSpherical(spherical).add(target);
-  camera.position.copy(pos);
-  camera.lookAt(target);
+function updateOrbitCamera(){camera.position.setFromSpherical(spherical).add(target);camera.lookAt(target);}
+
+// ============================================================
+// POST-PROCESSING
+// ============================================================
+function initComposer(){
+  composer=new THREE.EffectComposer(renderer);
+  composer.addPass(new THREE.RenderPass(scene,camera));
+
+  bloomPass=new THREE.UnrealBloomPass(new THREE.Vector2(window.innerWidth,window.innerHeight),state.bloomStrength,state.bloomRadius,state.bloomThreshold);
+  bloomPass.enabled=state.bloomEnabled;
+  composer.addPass(bloomPass);
+
+  bokehPass=new THREE.BokehPass(scene,camera,{focus:state.dofFocus,aperture:state.dofAperture,maxblur:state.dofMaxBlur,width:window.innerWidth,height:window.innerHeight});
+  bokehPass.enabled=state.dofEnabled;
+  composer.addPass(bokehPass);
+
+  filmPass=new THREE.FilmPass(state.grainIntensity,0.0,648,false);
+  filmPass.enabled=state.grainEnabled;
+  composer.addPass(filmPass);
+
+  vignettePass=new THREE.ShaderPass(VignetteShader);
+  vignettePass.uniforms.darkness.value=state.vignetteDarkness;
+  vignettePass.uniforms.offset.value=state.vignetteOffset;
+  vignettePass.uniforms.enabled.value=1.0;
+  composer.addPass(vignettePass);
+
+  chromaPass=new THREE.ShaderPass(ChromaShader);
+  chromaPass.uniforms.strength.value=state.chromaStrength;
+  chromaPass.uniforms.enabled.value=0.0;
+  chromaPass.renderToScreen=true;
+  composer.addPass(chromaPass);
 }
 
 // ============================================================
-// BUILD FLOOR
+// FX CONTROLS
 // ============================================================
-
-function buildFloor() {
-  if (floorMesh) { scene.remove(floorMesh); floorMesh.geometry.dispose(); }
-  const sz = parseFloat(state.floorSize);
-
-  let geo = new THREE.PlaneGeometry(sz, sz, 1, 1);
-  let mat;
-
-  if (state.floorMaterial === 'none') return;
-
-  if (state.floorMaterial === 'grid') {
-    const canvas = document.createElement('canvas');
-    canvas.width = canvas.height = 512;
-    const ctx = canvas.getContext('2d');
-    ctx.fillStyle = state.floorColor;
-    ctx.fillRect(0, 0, 512, 512);
-    ctx.strokeStyle = 'rgba(255,255,255,0.08)';
-    ctx.lineWidth = 1;
-    for (let i = 0; i <= 16; i++) {
-      const p = (512 / 16) * i;
-      ctx.beginPath(); ctx.moveTo(p, 0); ctx.lineTo(p, 512); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(0, p); ctx.lineTo(512, p); ctx.stroke();
-    }
-    const tex = new THREE.CanvasTexture(canvas);
-    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-    tex.repeat.set(4, 4);
-    mat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.9, metalness: 0 });
-  } else if (state.floorMaterial === 'checker') {
-    const canvas = document.createElement('canvas');
-    canvas.width = canvas.height = 512;
-    const ctx = canvas.getContext('2d');
-    const c1 = state.floorColor;
-    const c2 = lightenColor(state.floorColor, 20);
-    for (let r = 0; r < 8; r++) for (let c = 0; c < 8; c++) {
-      ctx.fillStyle = (r + c) % 2 === 0 ? c1 : c2;
-      ctx.fillRect(c * 64, r * 64, 64, 64);
-    }
-    const tex = new THREE.CanvasTexture(canvas);
-    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-    tex.repeat.set(2, 2);
-    mat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.8 });
-  } else {
-    mat = new THREE.MeshStandardMaterial({ color: state.floorColor, roughness: 0.9 });
+function toggleFX(el,feature){
+  el.classList.toggle('on');
+  const on=el.classList.contains('on');
+  switch(feature){
+    case 'bloom': state.bloomEnabled=on; if(bloomPass)bloomPass.enabled=on; break;
+    case 'dof': state.dofEnabled=on; if(bokehPass)bokehPass.enabled=on; break;
+    case 'grain': state.grainEnabled=on; if(filmPass)filmPass.enabled=on||state.scanlinesEnabled; break;
+    case 'scanlines': state.scanlinesEnabled=on; if(filmPass){filmPass.uniforms.sIntensity.value=on?0.5:0.0;filmPass.enabled=state.grainEnabled||on;} break;
+    case 'vignette': state.vignetteEnabled=on; if(vignettePass)vignettePass.uniforms.enabled.value=on?1.0:0.0; break;
+    case 'chroma': state.chromaEnabled=on; if(chromaPass)chromaPass.uniforms.enabled.value=on?1.0:0.0; break;
+    case 'dust': state.dustEnabled=on; if(dustParticles)dustParticles.visible=on; break;
   }
+}
 
-  floorMesh = new THREE.Mesh(geo, mat);
-  floorMesh.rotation.x = -Math.PI / 2;
-  floorMesh.receiveShadow = true;
-  floorMesh.userData.isFloor = true;
+function setupFXControls(){
+  bind('bloom-strength','bloom-str-val',v=>{state.bloomStrength=+v;if(bloomPass)bloomPass.strength=+v;});
+  bind('bloom-radius','bloom-rad-val',v=>{state.bloomRadius=+v;if(bloomPass)bloomPass.radius=+v;});
+  bind('bloom-threshold','bloom-thr-val',v=>{state.bloomThreshold=+v;if(bloomPass)bloomPass.threshold=+v;});
+  bind('dof-focus','dof-focus-val',v=>{state.dofFocus=+v;if(bokehPass)bokehPass.uniforms.focus.value=+v;});
+  bind('dof-aperture','dof-apt-val',v=>{state.dofAperture=+v;if(bokehPass)bokehPass.uniforms.aperture.value=+v;},true);
+  bind('dof-maxblur','dof-blur-val',v=>{state.dofMaxBlur=+v;if(bokehPass)bokehPass.uniforms.maxblur.value=+v;});
+  bind('grain-intensity','grain-int-val',v=>{state.grainIntensity=+v;if(filmPass)filmPass.uniforms.nIntensity.value=+v;});
+  bind('vignette-darkness','vig-dark-val',v=>{state.vignetteDarkness=+v;if(vignettePass)vignettePass.uniforms.darkness.value=+v;});
+  bind('vignette-offset','vig-off-val',v=>{state.vignetteOffset=+v;if(vignettePass)vignettePass.uniforms.offset.value=+v;});
+  bind('chroma-strength','chroma-str-val',v=>{state.chromaStrength=+v;if(chromaPass)chromaPass.uniforms.strength.value=+v;});
+  bind('dust-count','dust-count-val',v=>{state.dustCount=+v;buildDust();});
+  bind('dust-speed','dust-speed-val',v=>{state.dustSpeed=+v;});
+  bind('dust-size','dust-size-val',v=>{state.dustSize=+v;if(dustParticles)dustParticles.material.size=+v;});
+  document.getElementById('dust-color').addEventListener('input',e=>{state.dustColor=e.target.value;if(dustParticles)dustParticles.material.color.set(e.target.value);});
+}
+
+function bind(id,valId,fn,scientific=false){
+  const el=document.getElementById(id);
+  if(!el)return;
+  el.addEventListener('input',e=>{
+    fn(e.target.value);
+    const v=parseFloat(e.target.value);
+    document.getElementById(valId).textContent=scientific?v.toExponential(1):v.toFixed(3).replace(/\.?0+$/,'')||'0';
+  });
+}
+
+// ============================================================
+// DUST PARTICLES
+// ============================================================
+function buildDust(){
+  if(dustParticles){scene.remove(dustParticles);dustParticles.geometry.dispose();dustParticles.material.dispose();}
+  const count=state.dustCount;
+  const geo=new THREE.BufferGeometry();
+  const pos=new Float32Array(count*3);
+  const vel=new Float32Array(count*3);
+  const range=20;
+  for(let i=0;i<count;i++){
+    pos[i*3]=(Math.random()-.5)*range;
+    pos[i*3+1]=Math.random()*8;
+    pos[i*3+2]=(Math.random()-.5)*range;
+    vel[i*3]=(Math.random()-.5)*0.002;
+    vel[i*3+1]=Math.random()*0.001+0.0005;
+    vel[i*3+2]=(Math.random()-.5)*0.002;
+  }
+  geo.setAttribute('position',new THREE.BufferAttribute(pos,3));
+  geo.setAttribute('velocity',new THREE.BufferAttribute(vel,3));
+  const mat=new THREE.PointsMaterial({color:state.dustColor,size:state.dustSize,transparent:true,opacity:0.4,sizeAttenuation:true,depthWrite:false});
+  dustParticles=new THREE.Points(geo,mat);
+  dustParticles.visible=state.dustEnabled;
+  scene.add(dustParticles);
+}
+
+function animateDust(t){
+  if(!dustParticles||!dustParticles.visible)return;
+  const pos=dustParticles.geometry.attributes.position.array;
+  const vel=dustParticles.geometry.attributes.velocity.array;
+  const count=pos.length/3;
+  const sp=state.dustSpeed;
+  const range=10;
+  for(let i=0;i<count;i++){
+    pos[i*3]+=vel[i*3]*sp+Math.sin(t*0.3+i*0.1)*0.0002;
+    pos[i*3+1]+=vel[i*3+1]*sp;
+    pos[i*3+2]+=vel[i*3+2]*sp;
+    if(pos[i*3]>range)pos[i*3]=-range;
+    if(pos[i*3]<-range)pos[i*3]=range;
+    if(pos[i*3+1]>8)pos[i*3+1]=0;
+    if(pos[i*3+2]>range)pos[i*3+2]=-range;
+    if(pos[i*3+2]<-range)pos[i*3+2]=range;
+  }
+  dustParticles.geometry.attributes.position.needsUpdate=true;
+}
+
+// ============================================================
+// FLOOR / GRID / STARS / SIGN
+// ============================================================
+function buildFloor(){
+  if(floorMesh){scene.remove(floorMesh);floorMesh.geometry.dispose();}
+  if(state.floorMaterial==='none')return;
+  const sz=parseFloat(state.floorSize);
+  const geo=new THREE.PlaneGeometry(sz,sz);
+  let mat;
+  if(state.floorMaterial==='grid'){
+    const c=document.createElement('canvas');c.width=c.height=512;const ctx=c.getContext('2d');
+    ctx.fillStyle=state.floorColor;ctx.fillRect(0,0,512,512);
+    ctx.strokeStyle='rgba(255,255,255,0.08)';ctx.lineWidth=1;
+    for(let i=0;i<=16;i++){const p=(512/16)*i;ctx.beginPath();ctx.moveTo(p,0);ctx.lineTo(p,512);ctx.stroke();ctx.beginPath();ctx.moveTo(0,p);ctx.lineTo(512,p);ctx.stroke();}
+    const tex=new THREE.CanvasTexture(c);tex.wrapS=tex.wrapT=THREE.RepeatWrapping;tex.repeat.set(4,4);
+    mat=new THREE.MeshStandardMaterial({map:tex,roughness:0.9,metalness:0});
+  } else if(state.floorMaterial==='checker'){
+    const c=document.createElement('canvas');c.width=c.height=512;const ctx=c.getContext('2d');
+    const n=parseInt(state.floorColor.replace('#',''),16);const am=20;
+    const c2=`rgb(${Math.min(255,(n>>16)+am)},${Math.min(255,((n>>8)&0xff)+am)},${Math.min(255,(n&0xff)+am)})`;
+    for(let r=0;r<8;r++)for(let cc=0;cc<8;cc++){ctx.fillStyle=(r+cc)%2===0?state.floorColor:c2;ctx.fillRect(cc*64,r*64,64,64);}
+    const tex=new THREE.CanvasTexture(c);tex.wrapS=tex.wrapT=THREE.RepeatWrapping;tex.repeat.set(2,2);
+    mat=new THREE.MeshStandardMaterial({map:tex,roughness:0.8});
+  } else {
+    mat=new THREE.MeshStandardMaterial({color:state.floorColor,roughness:0.9});
+  }
+  floorMesh=new THREE.Mesh(geo,mat);
+  floorMesh.rotation.x=-Math.PI/2;floorMesh.receiveShadow=true;
   scene.add(floorMesh);
 }
 
-function lightenColor(hex, amount) {
-  const num = parseInt(hex.replace('#', ''), 16);
-  const r = Math.min(255, (num >> 16) + amount);
-  const g = Math.min(255, ((num >> 8) & 0xff) + amount);
-  const b = Math.min(255, (num & 0xff) + amount);
-  return `rgb(${r},${g},${b})`;
+function buildGrid(){
+  if(gridHelper)scene.remove(gridHelper);
+  if(!state.showGrid)return;
+  gridHelper=new THREE.GridHelper(parseFloat(state.floorSize),20,0x222233,0x111122);
+  gridHelper.position.y=0.001;scene.add(gridHelper);
 }
 
-// ============================================================
-// GRID HELPER
-// ============================================================
-
-function buildGrid() {
-  if (gridHelper) scene.remove(gridHelper);
-  if (!state.showGrid) return;
-  gridHelper = new THREE.GridHelper(parseFloat(state.floorSize), 20, 0x222233, 0x111122);
-  gridHelper.position.y = 0.001;
-  scene.add(gridHelper);
-}
-
-// ============================================================
-// STARS
-// ============================================================
-
-function buildStars() {
-  if (starsObj) { scene.remove(starsObj); starsObj.geometry.dispose(); }
-  if (!state.showStars) return;
-  const geo = new THREE.BufferGeometry();
-  const verts = [];
-  for (let i = 0; i < 2000; i++) {
-    const r = 200 + Math.random() * 300;
-    const theta = Math.random() * Math.PI * 2;
-    const phi = Math.acos(2 * Math.random() - 1);
-    verts.push(r * Math.sin(phi) * Math.cos(theta), r * Math.cos(phi), r * Math.sin(phi) * Math.sin(theta));
-  }
-  geo.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
-  const mat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.5, sizeAttenuation: true, transparent: true, opacity: 0.6 });
-  starsObj = new THREE.Points(geo, mat);
+function buildStars(){
+  if(starsObj){scene.remove(starsObj);starsObj.geometry.dispose();}
+  if(!state.showStars)return;
+  const geo=new THREE.BufferGeometry();const v=[];
+  for(let i=0;i<2000;i++){const r=200+Math.random()*300;const t=Math.random()*Math.PI*2;const p=Math.acos(2*Math.random()-1);v.push(r*Math.sin(p)*Math.cos(t),r*Math.cos(p),r*Math.sin(p)*Math.sin(t));}
+  geo.setAttribute('position',new THREE.Float32BufferAttribute(v,3));
+  starsObj=new THREE.Points(geo,new THREE.PointsMaterial({color:0xffffff,size:0.5,sizeAttenuation:true,transparent:true,opacity:0.6}));
   scene.add(starsObj);
 }
 
-// ============================================================
-// PERSONALISATION SIGN
-// ============================================================
-
-function buildSign() {
-  if (signMesh) { scene.remove(signMesh); signMesh.geometry.dispose(); }
-
-  const canvas = document.createElement('canvas');
-  canvas.width = 800; canvas.height = 200;
-  const ctx = canvas.getContext('2d');
-
-  ctx.fillStyle = state.textBg;
-  ctx.fillRect(0, 0, 800, 200);
-
-  // Border
-  ctx.strokeStyle = state.textColor;
-  ctx.lineWidth = 6;
-  ctx.strokeRect(6, 6, 788, 188);
-
-  ctx.fillStyle = state.textColor;
-  ctx.font = state.textFont;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(state.personalName.toUpperCase(), 400, 100);
-
-  const tex = new THREE.CanvasTexture(canvas);
-  const geo = new THREE.PlaneGeometry(4, 1);
-  const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true });
-  signMesh = new THREE.Mesh(geo, mat);
-  signMesh.position.set(0, 2.5, -3);
-  signMesh.userData.isSign = true;
-  if (state.showSign) scene.add(signMesh);
+function buildSign(){
+  if(signMesh){scene.remove(signMesh);signMesh.geometry.dispose();}
+  const c=document.createElement('canvas');c.width=800;c.height=200;const ctx=c.getContext('2d');
+  ctx.fillStyle=state.textBg;ctx.fillRect(0,0,800,200);
+  ctx.strokeStyle=state.textColor;ctx.lineWidth=6;ctx.strokeRect(6,6,788,188);
+  ctx.fillStyle=state.textColor;ctx.font=state.textFont;ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText(state.personalName.toUpperCase(),400,100);
+  const tex=new THREE.CanvasTexture(c);
+  signMesh=new THREE.Mesh(new THREE.PlaneGeometry(4,1),new THREE.MeshBasicMaterial({map:tex,transparent:true}));
+  signMesh.position.set(0,2.5,-3);
+  if(state.showSign)scene.add(signMesh);
 }
 
 // ============================================================
-// ADD OBJECTS
+// OBJECTS
 // ============================================================
-
-function addObject(type, opts = {}) {
-  const color = opts.color || '#e8ff47';
-  const x = opts.x !== undefined ? opts.x : (Math.random() - 0.5) * 6;
-  const z = opts.z !== undefined ? opts.z : (Math.random() - 0.5) * 6;
-
+function addObject(type,opts={}){
+  const color=opts.color||'#e8ff47';
+  const x=opts.x!==undefined?opts.x:(Math.random()-.5)*6;
+  const z=opts.z!==undefined?opts.z:(Math.random()-.5)*6;
   let geo;
-  switch(type) {
-    case 'box': geo = new THREE.BoxGeometry(1, 1, 1); break;
-    case 'sphere': geo = new THREE.SphereGeometry(0.6, 32, 32); break;
-    case 'cylinder': geo = new THREE.CylinderGeometry(0.4, 0.4, 1.2, 32); break;
-    case 'torus': geo = new THREE.TorusGeometry(0.5, 0.2, 16, 64); break;
-    case 'cone': geo = new THREE.ConeGeometry(0.5, 1.2, 32); break;
-    case 'plane': geo = new THREE.PlaneGeometry(1.5, 1.5); break;
-    default: geo = new THREE.BoxGeometry(1, 1, 1);
+  switch(type){
+    case 'box':geo=new THREE.BoxGeometry(1,1,1);break;
+    case 'sphere':geo=new THREE.SphereGeometry(0.6,32,32);break;
+    case 'cylinder':geo=new THREE.CylinderGeometry(0.4,0.4,1.2,32);break;
+    case 'torus':geo=new THREE.TorusGeometry(0.5,0.2,16,64);break;
+    case 'cone':geo=new THREE.ConeGeometry(0.5,1.2,32);break;
+    case 'plane':geo=new THREE.PlaneGeometry(1.5,1.5);break;
+    default:geo=new THREE.BoxGeometry(1,1,1);
   }
-
-  const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.5, metalness: 0.1 });
-  const mesh = new THREE.Mesh(geo, mat);
-
-  const halfH = type === 'sphere' ? 0.6 : type === 'torus' ? 0.5 : 0.5;
-  const posY = opts.y !== undefined ? opts.y : halfH;
-  mesh.position.set(x, posY, z);
-  mesh.castShadow = true;
-
-  const id = ++objectIdCounter;
-  mesh.userData = { id, type, animate: true, animOffset: Math.random() * Math.PI * 2, baseY: posY };
-
-  scene.add(mesh);
-  sceneObjects.push(mesh);
-  updateObjectsList();
-
+  const mesh=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({color,roughness:0.5,metalness:0.1}));
+  mesh.position.set(x,opts.y!==undefined?opts.y:0.5,z);
+  mesh.castShadow=true;
+  mesh.userData={id:++objectIdCounter,type,animate:true,animOffset:Math.random()*Math.PI*2};
+  scene.add(mesh);sceneObjects.push(mesh);updateObjectsList();
   return mesh;
 }
 
-function updateObjectsList() {
-  const list = document.getElementById('objects-list');
-  list.innerHTML = '';
-  sceneObjects.forEach(obj => {
-    const div = document.createElement('div');
-    div.className = 'object-item' + (obj === selectedObject ? ' selected' : '');
-    div.dataset.id = obj.userData.id;
-    div.innerHTML = `<span>${obj.userData.type.toUpperCase()} <span class="obj-type">#${obj.userData.id}</span></span><span class="object-remove" onclick="event.stopPropagation(); removeObject(${obj.userData.id})">✕</span>`;
-    div.addEventListener('click', () => selectObject(obj));
-    list.appendChild(div);
+function updateObjectsList(){
+  const list=document.getElementById('objects-list');list.innerHTML='';
+  sceneObjects.forEach(obj=>{
+    const div=document.createElement('div');
+    div.className='object-item'+(obj===selectedObject?' selected':'');
+    div.innerHTML=`<span>${obj.userData.type.toUpperCase()} <span class="obj-type">#${obj.userData.id}</span></span><span class="object-remove" onclick="event.stopPropagation();removeObject(${obj.userData.id})">✕</span>`;
+    div.addEventListener('click',()=>selectObject(obj));list.appendChild(div);
   });
 }
 
-let uniformScale = true;
-
-function toggleUniformScale(el) {
-  uniformScale = !uniformScale;
-  el.classList.toggle('on', uniformScale);
-  document.getElementById('uniform-scale-row').style.display = uniformScale ? 'block' : 'none';
-  document.getElementById('axis-scale-rows').style.display = uniformScale ? 'none' : 'block';
+function selectObject(obj){
+  selectedObject=obj;updateObjectsList();
+  document.getElementById('selected-controls').style.display='block';
+  document.getElementById('selected-label').textContent=`SELECTED: ${obj.userData.type.toUpperCase()} #${obj.userData.id}`;
+  if(obj.material&&obj.material.color)document.getElementById('obj-color').value='#'+obj.material.color.getHexString();
+  document.getElementById('obj-scale').value=obj.scale.x;
+  document.getElementById('scale-val').textContent=obj.scale.x.toFixed(1);
 }
 
-function selectObject(obj) {
-  selectedObject = obj;
-  updateObjectsList();
-  const el = document.getElementById('selected-controls');
-  el.style.display = 'block';
-  document.getElementById('selected-label').textContent = `SELECTED: ${obj.userData.type.toUpperCase()} #${obj.userData.id}`;
-
-  // Color
-  if (obj.material && obj.material.color) {
-    document.getElementById('obj-color').value = '#' + obj.material.color.getHexString();
-  }
-
-  // Position
-  const pos = obj.position;
-  document.getElementById('obj-pos-x').value = pos.x;
-  document.getElementById('pos-x-val').textContent = pos.x.toFixed(1);
-  document.getElementById('obj-pos-y').value = pos.y;
-  document.getElementById('pos-y-val').textContent = pos.y.toFixed(1);
-  document.getElementById('obj-pos-z').value = pos.z;
-  document.getElementById('pos-z-val').textContent = pos.z.toFixed(1);
-
-  // Rotation (radians to degrees)
-  document.getElementById('obj-rot-x').value = Math.round(THREE.MathUtils.radToDeg(obj.rotation.x) + 360) % 360;
-  document.getElementById('rot-x-val').textContent = document.getElementById('obj-rot-x').value + '°';
-  document.getElementById('obj-rot-y').value = Math.round(THREE.MathUtils.radToDeg(obj.rotation.y) + 360) % 360;
-  document.getElementById('rot-y-val').textContent = document.getElementById('obj-rot-y').value + '°';
-  document.getElementById('obj-rot-z').value = Math.round(THREE.MathUtils.radToDeg(obj.rotation.z) + 360) % 360;
-  document.getElementById('rot-z-val').textContent = document.getElementById('obj-rot-z').value + '°';
-
-  // Scale
-  document.getElementById('obj-scale').value = obj.scale.x;
-  document.getElementById('scale-val').textContent = obj.scale.x.toFixed(1);
-  document.getElementById('obj-scale-x').value = obj.scale.x;
-  document.getElementById('scale-x-val').textContent = obj.scale.x.toFixed(1);
-  document.getElementById('obj-scale-y').value = obj.scale.y;
-  document.getElementById('scale-y-val').textContent = obj.scale.y.toFixed(1);
-  document.getElementById('obj-scale-z').value = obj.scale.z;
-  document.getElementById('scale-z-val').textContent = obj.scale.z.toFixed(1);
-
-  // Animation toggle
-  document.getElementById('toggle-anim-obj').classList.toggle('on', obj.userData.animate);
-}
-
-function updateSelected(prop, value, toggleEl) {
-  if (!selectedObject) return;
-  const v = parseFloat(value);
-
-  if (prop === 'color') {
-    selectedObject.material.color.set(value);
-  } else if (prop === 'material') {
-    const c = selectedObject.material.color ? selectedObject.material.color.clone() : new THREE.Color('#ffffff');
-    const r = selectedObject.material.roughness || 0.5;
-    const m = selectedObject.material.metalness || 0.1;
+function updateSelected(prop,value,toggleEl){
+  if(!selectedObject)return;
+  if(prop==='color'){selectedObject.material.color.set(value);if(selectedObject.material.emissive)selectedObject.material.emissive.set(value);}
+  else if(prop==='material'){
+    const c=selectedObject.material.color?selectedObject.material.color.clone():new THREE.Color(0xffffff);
     selectedObject.material.dispose();
-    if (value === 'wireframe') {
-      selectedObject.material = new THREE.MeshBasicMaterial({ color: c, wireframe: true });
-    } else if (value === 'normal') {
-      selectedObject.material = new THREE.MeshNormalMaterial({ wireframe: false });
-    } else if (value === 'glass') {
-      selectedObject.material = new THREE.MeshPhysicalMaterial({ color: c, transmission: 0.9, transparent: true, roughness: 0.05, metalness: 0 });
-    } else if (value === 'phong') {
-      selectedObject.material = new THREE.MeshPhongMaterial({ color: c, shininess: 100 });
-    } else {
-      selectedObject.material = new THREE.MeshStandardMaterial({ color: c, roughness: r, metalness: m });
-    }
-  } else if (prop === 'roughness') {
-    if (selectedObject.material.roughness !== undefined) selectedObject.material.roughness = v;
-  } else if (prop === 'metalness') {
-    if (selectedObject.material.metalness !== undefined) selectedObject.material.metalness = v;
-  } else if (prop === 'scale') {
-    selectedObject.scale.set(v, v, v);
-  } else if (prop === 'scaleX') {
-    selectedObject.scale.x = v;
-  } else if (prop === 'scaleY') {
-    selectedObject.scale.y = v;
-  } else if (prop === 'scaleZ') {
-    selectedObject.scale.z = v;
-  } else if (prop === 'posX') {
-    selectedObject.position.x = v;
-    selectedObject.userData.baseY = undefined;
-  } else if (prop === 'posY') {
-    selectedObject.position.y = v;
-    selectedObject.userData.baseY = v;
-  } else if (prop === 'posZ') {
-    selectedObject.position.z = v;
-  } else if (prop === 'rotX') {
-    selectedObject.rotation.x = THREE.MathUtils.degToRad(v);
-  } else if (prop === 'rotY') {
-    selectedObject.rotation.y = THREE.MathUtils.degToRad(v);
-  } else if (prop === 'rotZ') {
-    selectedObject.rotation.z = THREE.MathUtils.degToRad(v);
-  } else if (prop === 'animate') {
-    selectedObject.userData.animate = !selectedObject.userData.animate;
-    toggleEl.classList.toggle('on', selectedObject.userData.animate);
+    if(value==='wireframe')selectedObject.material=new THREE.MeshBasicMaterial({color:c,wireframe:true});
+    else if(value==='normal')selectedObject.material=new THREE.MeshNormalMaterial();
+    else if(value==='glass')selectedObject.material=new THREE.MeshPhysicalMaterial({color:c,transmission:0.9,transparent:true,roughness:0.05,metalness:0});
+    else if(value==='phong')selectedObject.material=new THREE.MeshPhongMaterial({color:c,shininess:100});
+    else if(value==='emissive')selectedObject.material=new THREE.MeshStandardMaterial({color:c,emissive:c,emissiveIntensity:1.5,roughness:0.3,metalness:0.2});
+    else selectedObject.material=new THREE.MeshStandardMaterial({color:c,roughness:0.5,metalness:0.1});
   }
+  else if(prop==='roughness'&&selectedObject.material.roughness!==undefined)selectedObject.material.roughness=parseFloat(value);
+  else if(prop==='metalness'&&selectedObject.material.metalness!==undefined)selectedObject.material.metalness=parseFloat(value);
+  else if(prop==='scale'){const s=parseFloat(value);selectedObject.scale.set(s,s,s);}
+  else if(prop==='animate'){selectedObject.userData.animate=!selectedObject.userData.animate;toggleEl.classList.toggle('on',selectedObject.userData.animate);}
 }
 
-function removeObject(id) {
-  const idx = sceneObjects.findIndex(o => o.userData.id === id);
-  if (idx === -1) return;
-  const obj = sceneObjects[idx];
-  scene.remove(obj);
-  obj.geometry.dispose();
-  obj.material.dispose();
-  sceneObjects.splice(idx, 1);
-  if (selectedObject === obj) {
-    selectedObject = null;
-    document.getElementById('selected-controls').style.display = 'none';
-  }
+function removeObject(id){
+  const idx=sceneObjects.findIndex(o=>o.userData.id===id);if(idx===-1)return;
+  const obj=sceneObjects[idx];scene.remove(obj);obj.geometry.dispose();obj.material.dispose();
+  sceneObjects.splice(idx,1);
+  if(selectedObject===obj){selectedObject=null;document.getElementById('selected-controls').style.display='none';}
   updateObjectsList();
 }
-
-function removeSelected() {
-  if (selectedObject) removeObject(selectedObject.userData.id);
-}
+function removeSelected(){if(selectedObject)removeObject(selectedObject.userData.id);}
 
 // ============================================================
-// CLICK + DRAG INTERACTION
+// CLICK
 // ============================================================
-
-const raycaster = new THREE.Raycaster();
-const mouse = new THREE.Vector2();
-const dragPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
-const dragIntersect = new THREE.Vector3();
-const dragOffset = new THREE.Vector3();
-
-// isDraggingObject declared above with scene vars
-let dragTarget = null;
-let mouseDownPos = new THREE.Vector2();
-let didDrag = false;
-
-function getMouseNDC(e) {
-  const rect = renderer.domElement.getBoundingClientRect();
-  return new THREE.Vector2(
-    ((e.clientX - rect.left) / rect.width) * 2 - 1,
-    -((e.clientY - rect.top) / rect.height) * 2 + 1
-  );
+const raycaster=new THREE.Raycaster();const mouse=new THREE.Vector2();
+function onSceneClick(e){
+  const rect=renderer.domElement.getBoundingClientRect();
+  mouse.x=((e.clientX-rect.left)/rect.width)*2-1;
+  mouse.y=-((e.clientY-rect.top)/rect.height)*2+1;
+  raycaster.setFromCamera(mouse,camera);
+  const hits=raycaster.intersectObjects(sceneObjects);
+  if(hits.length>0){const obj=hits[0].object;selectObject(obj);obj.userData.clickAnim={t:0,orig:obj.scale.x};spawnRipple(e.clientX,e.clientY);}
 }
-
-function onCanvasMouseDown(e) {
-  if (e.button !== 0) return; // only left click
-
-  mouseDownPos.set(e.clientX, e.clientY);
-  didDrag = false;
-  const ndc = getMouseNDC(e);
-  raycaster.setFromCamera(ndc, camera);
-
-  // Check if we hit a scene object
-  const hits = raycaster.intersectObjects(sceneObjects, true);
-  if (hits.length > 0) {
-    // Find the root scene object (for GLB models which are groups)
-    let hitObj = hits[0].object;
-    let rootObj = sceneObjects.find(o => o === hitObj || (o.children && o.traverse && hitObj.parent === o));
-    if (!rootObj) {
-      // Walk up parents to find a registered scene object
-      let p = hitObj;
-      while (p) {
-        if (sceneObjects.includes(p)) { rootObj = p; break; }
-        p = p.parent;
-      }
-    }
-    if (!rootObj) rootObj = hitObj;
-
-    isDraggingObject = true;
-    dragTarget = rootObj;
-
-    // Set drag plane at object's Y level
-    dragPlane.set(new THREE.Vector3(0, 1, 0), -rootObj.position.y);
-    raycaster.ray.intersectPlane(dragPlane, dragIntersect);
-    dragOffset.copy(rootObj.position).sub(dragIntersect);
-
-    // Prevent orbit from starting
-    orbitState.active = false;
-    document.getElementById('canvas-container').classList.add('dragging');
-    e.preventDefault();
-    e.stopPropagation();
-  }
-}
-
-function onCanvasMouseMove(e) {
-  // Hover cursor feedback
-  if (!isDraggingObject) {
-    const ndc = getMouseNDC(e);
-    raycaster.setFromCamera(ndc, camera);
-    const hits = raycaster.intersectObjects(sceneObjects, true);
-    const container = document.getElementById('canvas-container');
-    if (hits.length > 0) {
-      container.classList.add('hovering');
-    } else {
-      container.classList.remove('hovering');
-    }
-  }
-
-  if (!isDraggingObject || !dragTarget) return;
-
-  const dx = e.clientX - mouseDownPos.x;
-  const dy = e.clientY - mouseDownPos.y;
-  if (Math.abs(dx) > 3 || Math.abs(dy) > 3) didDrag = true;
-
-  const ndc = getMouseNDC(e);
-  raycaster.setFromCamera(ndc, camera);
-  raycaster.ray.intersectPlane(dragPlane, dragIntersect);
-
-  dragTarget.position.x = dragIntersect.x + dragOffset.x;
-  dragTarget.position.z = dragIntersect.z + dragOffset.z;
-  // Lock Y to baseY during drag (no bounce)
-  dragTarget.position.y = dragTarget.userData.baseY;
-
-  // Update panel sliders if this is the selected object
-  if (dragTarget === selectedObject) {
-    document.getElementById('obj-pos-x').value = dragTarget.position.x;
-    document.getElementById('pos-x-val').textContent = dragTarget.position.x.toFixed(1);
-    document.getElementById('obj-pos-z').value = dragTarget.position.z;
-    document.getElementById('pos-z-val').textContent = dragTarget.position.z.toFixed(1);
-  }
-}
-
-function deselectObject() {
-  selectedObject = null;
-  updateObjectsList();
-  document.getElementById('selected-controls').style.display = 'none';
-}
-
-function onCanvasMouseUp(e) {
-  if (isDraggingObject && dragTarget) {
-    document.getElementById('canvas-container').classList.remove('dragging');
-
-    if (!didDrag) {
-      // It was a click, not a drag — select the object
-      selectObject(dragTarget);
-      const orig = dragTarget.scale.x;
-      dragTarget.userData.clickAnim = { t: 0, orig };
-      spawnRipple(e.clientX, e.clientY);
-    } else {
-      // After drag, make sure it's selected
-      if (dragTarget !== selectedObject) selectObject(dragTarget);
-    }
-
-    isDraggingObject = false;
-    dragTarget = null;
-  } else if (e.button === 0 && !isDraggingObject) {
-    // Clicked empty space — check if it was a click (not an orbit drag)
-    const dx = e.clientX - mouseDownPos.x;
-    const dy = e.clientY - mouseDownPos.y;
-    if (Math.abs(dx) < 5 && Math.abs(dy) < 5) {
-      // Was a click on empty space, deselect
-      deselectObject();
-    }
-  }
-}
-
-function spawnRipple(x, y) {
-  const r = document.createElement('div');
-  r.className = 'ripple';
-  r.style.left = x + 'px';
-  r.style.top = y + 'px';
-  document.body.appendChild(r);
-  setTimeout(() => r.remove(), 500);
-}
+function spawnRipple(x,y){const r=document.createElement('div');r.className='ripple';r.style.left=x+'px';r.style.top=y+'px';document.body.appendChild(r);setTimeout(()=>r.remove(),500);}
 
 // ============================================================
 // ASSET IMPORT
 // ============================================================
-
-async function uploadFile(file) {
-  const formData = new FormData();
-  formData.append('file', file);
-  const resp = await fetch('/api/upload', { method: 'POST', body: formData });
-  if (!resp.ok) {
-    const err = await resp.json().catch(() => ({ error: 'Upload failed' }));
-    throw new Error(err.error || 'Upload failed');
-  }
-  return await resp.json();
+function loadTexture(input){
+  const file=input.files[0];if(!file)return;
+  new THREE.TextureLoader().load(URL.createObjectURL(file),tex=>{
+    const mesh=new THREE.Mesh(new THREE.PlaneGeometry(2,2),new THREE.MeshBasicMaterial({map:tex,transparent:true,side:THREE.DoubleSide}));
+    mesh.position.set(Math.random()*4-2,1,Math.random()*4-2);mesh.rotation.y=Math.random()*Math.PI*2;
+    mesh.userData={id:++objectIdCounter,type:'texture',animate:true,animOffset:Math.random()*Math.PI*2};
+    scene.add(mesh);sceneObjects.push(mesh);updateObjectsList();setAssetStatus(`✓ ${file.name}`);
+  },undefined,()=>setAssetStatus('✗ Load failed'));
 }
-
-function addTextureFromURL(url, opts = {}) {
-  const loader = new THREE.TextureLoader();
-  loader.load(url, tex => {
-    const geo = new THREE.PlaneGeometry(2, 2);
-    const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, side: THREE.DoubleSide });
-    const mesh = new THREE.Mesh(geo, mat);
-    const px = opts.x !== undefined ? opts.x : Math.random() * 4 - 2;
-    const py = opts.y !== undefined ? opts.y : 1;
-    const pz = opts.z !== undefined ? opts.z : Math.random() * 4 - 2;
-    mesh.position.set(px, py, pz);
-    if (opts.rotX !== undefined) mesh.rotation.x = opts.rotX;
-    if (opts.rotY !== undefined) mesh.rotation.y = opts.rotY;
-    else mesh.rotation.y = Math.random() * Math.PI * 2;
-    if (opts.rotZ !== undefined) mesh.rotation.z = opts.rotZ;
-    if (opts.scaleX !== undefined) mesh.scale.set(opts.scaleX, opts.scaleY || 1, opts.scaleZ || 1);
-    const id = ++objectIdCounter;
-    const animate = opts.animate !== undefined ? opts.animate : true;
-    mesh.userData = { id, type: 'texture', animate, animOffset: Math.random() * Math.PI * 2, baseY: py, assetUrl: url };
-    scene.add(mesh);
-    sceneObjects.push(mesh);
-    updateObjectsList();
-    if (opts.onLoad) opts.onLoad(mesh);
-  }, undefined, () => {
-    if (opts.onError) opts.onError();
-    else setAssetStatus('✗ Failed to load texture');
-  });
+function loadGLB(input){
+  const file=input.files[0];if(!file)return;setAssetStatus('Loading...');
+  const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js';
+  s.onload=()=>{
+    new THREE.GLTFLoader().load(URL.createObjectURL(file),gltf=>{
+      const model=gltf.scene;
+      const box=new THREE.Box3().setFromObject(model);model.scale.setScalar(3/box.getSize(new THREE.Vector3()).length());
+      const b2=new THREE.Box3().setFromObject(model);model.position.y=-b2.min.y;
+      model.userData={id:++objectIdCounter,type:'glb',animate:false,animOffset:0};
+      scene.add(model);sceneObjects.push(model);updateObjectsList();setAssetStatus(`✓ ${file.name}`);
+    },undefined,()=>setAssetStatus('✗ Load failed'));
+  };document.head.appendChild(s);
 }
-
-async function loadTexture(input) {
-  const file = input.files[0];
-  if (!file) return;
-  setAssetStatus('Uploading texture...');
-  try {
-    const result = await uploadFile(file);
-    addTextureFromURL(result.url, {
-      onLoad: () => setAssetStatus(`✓ Texture uploaded: ${file.name}`)
-    });
-  } catch(e) {
-    setAssetStatus(`✗ Upload failed: ${e.message}`);
-  }
-}
-
-function ensureGLTFLoader() {
-  return new Promise((resolve, reject) => {
-    if (window.THREE && THREE.GLTFLoader) return resolve();
-    const script = document.createElement('script');
-    script.src = 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js';
-    script.onload = resolve;
-    script.onerror = reject;
-    document.head.appendChild(script);
-  });
-}
-
-function addGLBFromURL(url, opts = {}) {
-  ensureGLTFLoader().then(() => {
-    const loader = new THREE.GLTFLoader();
-    loader.load(url, gltf => {
-      const model = gltf.scene;
-      // Auto-scale if no explicit scale given
-      if (opts.scaleX === undefined) {
-        const box = new THREE.Box3().setFromObject(model);
-        const size = box.getSize(new THREE.Vector3()).length();
-        const s = 3 / size;
-        model.scale.setScalar(s);
-      } else {
-        model.scale.set(opts.scaleX, opts.scaleY || 1, opts.scaleZ || 1);
-      }
-      // Ground or position from opts
-      if (opts.y !== undefined) {
-        model.position.set(opts.x || 0, opts.y, opts.z || 0);
-      } else {
-        const boxAfter = new THREE.Box3().setFromObject(model);
-        model.position.y = -boxAfter.min.y;
-        if (opts.x !== undefined) model.position.x = opts.x;
-        if (opts.z !== undefined) model.position.z = opts.z;
-      }
-      if (opts.rotX !== undefined) model.rotation.x = opts.rotX;
-      if (opts.rotY !== undefined) model.rotation.y = opts.rotY;
-      if (opts.rotZ !== undefined) model.rotation.z = opts.rotZ;
-
-      const id = ++objectIdCounter;
-      const animate = opts.animate !== undefined ? opts.animate : false;
-      model.userData = { id, type: 'glb', animate, animOffset: 0, baseY: model.position.y, assetUrl: url };
-      scene.add(model);
-      sceneObjects.push(model);
-      updateObjectsList();
-      if (opts.onLoad) opts.onLoad(model);
-    }, undefined, () => {
-      if (opts.onError) opts.onError();
-      else setAssetStatus('✗ Failed to load GLB');
-    });
-  });
-}
-
-async function loadGLB(input) {
-  const file = input.files[0];
-  if (!file) return;
-  setAssetStatus('Uploading GLB...');
-  try {
-    const result = await uploadFile(file);
-    addGLBFromURL(result.url, {
-      onLoad: () => setAssetStatus(`✓ Model uploaded: ${file.name}`),
-      onError: () => setAssetStatus('✗ Failed to load uploaded model')
-    });
-  } catch(e) {
-    setAssetStatus(`✗ Upload failed: ${e.message}`);
-  }
-}
-
-function setAssetStatus(msg) {
-  document.getElementById('asset-status').textContent = msg;
-  setTimeout(() => document.getElementById('asset-status').textContent = '', 4000);
-}
+function setAssetStatus(msg){document.getElementById('asset-status').textContent=msg;setTimeout(()=>document.getElementById('asset-status').textContent='',4000);}
 
 // ============================================================
-// SIGN UPDATE
+// SIGN / CAMERA / FEATURES
 // ============================================================
-
-function updateSign() {
-  state.personalName = document.getElementById('personal-name').value || 'WORLD';
-  state.textColor = document.getElementById('text-color').value;
-  state.textBg = document.getElementById('text-bg').value;
-  state.textFont = document.getElementById('text-font').value;
+function updateSign(){
+  state.personalName=document.getElementById('personal-name').value||'WORLD';
+  state.textColor=document.getElementById('text-color').value;
+  state.textBg=document.getElementById('text-bg').value;
+  state.textFont=document.getElementById('text-font').value;
   buildSign();
 }
-
-// ============================================================
-// CAMERA MODES
-// ============================================================
-
-function setCamera(mode) {
-  state.cameraMode = mode;
-  document.querySelectorAll('[id^="cam-"]').forEach(b => b.classList.remove('active'));
-  document.getElementById('cam-' + mode)?.classList.add('active');
-  document.getElementById('cam-mode-label').textContent = mode.toUpperCase();
-
-  if (mode === 'orbit') {
-    document.getElementById('help-bar').style.display = 'block';
-  } else {
-    document.getElementById('help-bar').style.display = 'none';
-  }
+function setCamera(mode){
+  state.cameraMode=mode;
+  document.querySelectorAll('[id^="cam-"]').forEach(b=>b.classList.remove('active'));
+  const btn=document.getElementById('cam-'+mode);if(btn)btn.classList.add('active');
+  document.getElementById('cam-mode-label').textContent=mode.toUpperCase();
+  document.getElementById('help-bar').style.display=mode==='orbit'?'block':'none';
 }
-
-// ============================================================
-// TOGGLE FEATURES
-// ============================================================
-
-function toggleFeature(el, feature) {
-  el.classList.toggle('on');
-  const on = el.classList.contains('on');
-
-  if (feature === 'grid') {
-    state.showGrid = on;
-    buildGrid();
-  } else if (feature === 'stars') {
-    state.showStars = on;
-    buildStars();
-  } else if (feature === 'lightOrbit') {
-    state.lightOrbit = on;
-  } else if (feature === 'shadows') {
-    state.shadows = on;
-    renderer.shadowMap.enabled = on;
-    scene.traverse(o => { if (o.material) o.material.needsUpdate = true; });
-  } else if (feature === 'sign') {
-    state.showSign = on;
-    if (on) scene.add(signMesh); else scene.remove(signMesh);
-  }
+function toggleFeature(el,feature){
+  el.classList.toggle('on');const on=el.classList.contains('on');
+  if(feature==='grid'){state.showGrid=on;buildGrid();}
+  else if(feature==='stars'){state.showStars=on;buildStars();}
+  else if(feature==='lightOrbit')state.lightOrbit=on;
+  else if(feature==='shadows'){state.shadows=on;renderer.shadowMap.enabled=on;scene.traverse(o=>{if(o.material)o.material.needsUpdate=true;});}
+  else if(feature==='sign'){state.showSign=on;if(on)scene.add(signMesh);else scene.remove(signMesh);}
 }
-
-function toggleSection(header) {
-  header.classList.toggle('open');
-  const body = header.nextElementSibling;
-  body.classList.toggle('open');
-}
+function toggleSection(h){h.classList.toggle('open');h.nextElementSibling.classList.toggle('open');}
 
 // ============================================================
-// RANGE INPUTS
+// RANGE / COLOR INPUTS
 // ============================================================
-
-function setupRangeInputs() {
-  const inputs = [
-    ['fog-density', 'fog-val', v => { state.fogDensity = +v; if(scene.fog) scene.fog.density = +v; }],
-    ['floor-size', 'floor-size-val', v => { state.floorSize = +v; buildFloor(); buildGrid(); }],
-    ['amb-intensity', 'amb-val', v => { state.ambIntensity = +v; ambientLight.intensity = +v; }],
-    ['pt-intensity', 'pt-val', v => { state.ptIntensity = +v; pointLight.intensity = +v; }],
-    ['pt-height', 'pth-val', v => { state.ptHeight = +v; pointLight.position.y = +v; }],
-    ['cam-fov', 'fov-val', v => { state.fov = +v; camera.fov = +v; camera.updateProjectionMatrix(); }],
-    ['cam-speed', 'cspeed-val', v => { state.camSpeed = +v; }],
-  ];
-
-  inputs.forEach(([id, valId, fn]) => {
-    const el = document.getElementById(id);
-    if (el) el.addEventListener('input', e => { fn(e.target.value); document.getElementById(valId).textContent = parseFloat(e.target.value).toFixed(2).replace(/\.?0+$/, '') || '0'; });
+function setupRangeInputs(){
+  [
+    ['fog-density','fog-val',v=>{state.fogDensity=+v;if(scene.fog)scene.fog.density=+v;}],
+    ['floor-size','floor-size-val',v=>{state.floorSize=+v;buildFloor();buildGrid();}],
+    ['amb-intensity','amb-val',v=>{state.ambIntensity=+v;ambientLight.intensity=+v;}],
+    ['pt-intensity','pt-val',v=>{state.ptIntensity=+v;pointLight.intensity=+v;}],
+    ['pt-height','pth-val',v=>{state.ptHeight=+v;pointLight.position.y=+v;}],
+    ['cam-fov','fov-val',v=>{state.fov=+v;camera.fov=+v;camera.updateProjectionMatrix();}],
+    ['cam-speed','cspeed-val',v=>{state.camSpeed=+v;}],
+  ].forEach(([id,valId,fn])=>{
+    const el=document.getElementById(id);
+    if(el)el.addEventListener('input',e=>{fn(e.target.value);document.getElementById(valId).textContent=parseFloat(e.target.value).toFixed(2).replace(/\.?0+$/,'')||'0';});
   });
 }
-
-function setupColorInputs() {
-  document.getElementById('sky-color').addEventListener('input', e => {
-    state.sky = e.target.value;
-    scene.background.set(e.target.value);
-  });
-  document.getElementById('fog-color').addEventListener('input', e => {
-    state.fogColor = e.target.value;
-    if (scene.fog) scene.fog.color.set(e.target.value);
-  });
-  document.getElementById('floor-color').addEventListener('input', e => { state.floorColor = e.target.value; buildFloor(); });
-  document.getElementById('floor-material').addEventListener('change', e => { state.floorMaterial = e.target.value; buildFloor(); });
-  document.getElementById('amb-color').addEventListener('input', e => { state.ambColor = e.target.value; ambientLight.color.set(e.target.value); });
-  document.getElementById('pt-color').addEventListener('input', e => { state.ptColor = e.target.value; pointLight.color.set(e.target.value); });
+function setupColorInputs(){
+  document.getElementById('sky-color').addEventListener('input',e=>{state.sky=e.target.value;scene.background.set(e.target.value);});
+  document.getElementById('fog-color').addEventListener('input',e=>{state.fogColor=e.target.value;if(scene.fog)scene.fog.color.set(e.target.value);});
+  document.getElementById('floor-color').addEventListener('input',e=>{state.floorColor=e.target.value;buildFloor();});
+  document.getElementById('floor-material').addEventListener('change',e=>{state.floorMaterial=e.target.value;buildFloor();});
+  document.getElementById('amb-color').addEventListener('input',e=>{state.ambColor=e.target.value;ambientLight.color.set(e.target.value);});
+  document.getElementById('pt-color').addEventListener('input',e=>{state.ptColor=e.target.value;pointLight.color.set(e.target.value);});
 }
 
 // ============================================================
 // PRESETS
 // ============================================================
-
-const presets = {
-  neon: { sky: '#06040f', fogColor: '#06040f', floorColor: '#0d0820', ambColor: '#220033', ptColor: '#ff00ff', skySet: true },
-  pastel: { sky: '#f5e6ff', fogColor: '#f5e6ff', floorColor: '#ffe8f0', ambColor: '#ffccee', ptColor: '#ff88cc', skySet: true },
-  cyber: { sky: '#000a0a', fogColor: '#000a0a', floorColor: '#001515', ambColor: '#004444', ptColor: '#00ffff', skySet: true },
-  warm: { sky: '#1a0a00', fogColor: '#1a0a00', floorColor: '#2a1200', ambColor: '#442200', ptColor: '#ff8833', skySet: true },
-  arctic: { sky: '#e8f4ff', fogColor: '#d0eaff', floorColor: '#cce8ff', ambColor: '#aaddff', ptColor: '#ffffff', skySet: true },
-  forest: { sky: '#061208', fogColor: '#061208', floorColor: '#081a0a', ambColor: '#114422', ptColor: '#88ff44', skySet: true },
+const presets={
+  neon:{sky:'#06040f',fogColor:'#06040f',floorColor:'#0d0820',ambColor:'#220033',ptColor:'#ff00ff',fx:{bloomS:1.8,bloomR:0.6,bloomT:0.1,vigD:1.0,grainI:0.08,dustC:'#ff00ff'}},
+  pastel:{sky:'#f5e6ff',fogColor:'#f5e6ff',floorColor:'#ffe8f0',ambColor:'#ffccee',ptColor:'#ff88cc',fx:{bloomS:0.4,bloomR:0.3,bloomT:0.5,vigD:0.3,grainI:0.05,dustC:'#ffccff'}},
+  cyber:{sky:'#000a0a',fogColor:'#000a0a',floorColor:'#001515',ambColor:'#004444',ptColor:'#00ffff',fx:{bloomS:1.2,bloomR:0.5,bloomT:0.2,vigD:0.9,grainI:0.2,dustC:'#00ffff'}},
+  warm:{sky:'#1a0a00',fogColor:'#1a0a00',floorColor:'#2a1200',ambColor:'#442200',ptColor:'#ff8833',fx:{bloomS:0.7,bloomR:0.4,bloomT:0.3,vigD:0.8,grainI:0.12,dustC:'#ffaa44'}},
+  arctic:{sky:'#e8f4ff',fogColor:'#d0eaff',floorColor:'#cce8ff',ambColor:'#aaddff',ptColor:'#ffffff',fx:{bloomS:0.5,bloomR:0.3,bloomT:0.6,vigD:0.4,grainI:0.03,dustC:'#ffffff'}},
+  forest:{sky:'#061208',fogColor:'#061208',floorColor:'#081a0a',ambColor:'#114422',ptColor:'#88ff44',fx:{bloomS:0.6,bloomR:0.4,bloomT:0.35,vigD:1.2,grainI:0.18,dustC:'#aaffaa'}},
 };
 
-function applyPreset(name) {
-  const p = presets[name];
-  if (!p) return;
-  state.sky = p.sky; scene.background.set(p.sky);
-  state.fogColor = p.fogColor; if (scene.fog) scene.fog.color.set(p.fogColor);
-  state.floorColor = p.floorColor; buildFloor();
-  state.ambColor = p.ambColor; ambientLight.color.set(p.ambColor);
-  state.ptColor = p.ptColor; pointLight.color.set(p.ptColor);
-
-  document.getElementById('sky-color').value = p.sky;
-  document.getElementById('fog-color').value = p.fogColor;
-  document.getElementById('floor-color').value = p.floorColor;
-  document.getElementById('amb-color').value = p.ambColor;
-  document.getElementById('pt-color').value = p.ptColor;
+function applyPreset(name){
+  const p=presets[name];if(!p)return;
+  state.sky=p.sky;scene.background.set(p.sky);
+  state.fogColor=p.fogColor;if(scene.fog)scene.fog.color.set(p.fogColor);
+  state.floorColor=p.floorColor;buildFloor();
+  state.ambColor=p.ambColor;ambientLight.color.set(p.ambColor);
+  state.ptColor=p.ptColor;pointLight.color.set(p.ptColor);
+  document.getElementById('sky-color').value=p.sky;
+  document.getElementById('fog-color').value=p.fogColor;
+  document.getElementById('floor-color').value=p.floorColor;
+  document.getElementById('amb-color').value=p.ambColor;
+  document.getElementById('pt-color').value=p.ptColor;
+  if(p.fx){
+    const fx=p.fx;
+    if(bloomPass){bloomPass.strength=fx.bloomS;bloomPass.radius=fx.bloomR;bloomPass.threshold=fx.bloomT;}
+    if(filmPass)filmPass.uniforms.nIntensity.value=fx.grainI;
+    if(vignettePass)vignettePass.uniforms.darkness.value=fx.vigD;
+    document.getElementById('bloom-strength').value=fx.bloomS;document.getElementById('bloom-str-val').textContent=fx.bloomS;
+    document.getElementById('bloom-radius').value=fx.bloomR;document.getElementById('bloom-rad-val').textContent=fx.bloomR;
+    document.getElementById('bloom-threshold').value=fx.bloomT;document.getElementById('bloom-thr-val').textContent=fx.bloomT;
+    document.getElementById('grain-intensity').value=fx.grainI;document.getElementById('grain-int-val').textContent=fx.grainI;
+    document.getElementById('vignette-darkness').value=fx.vigD;document.getElementById('vig-dark-val').textContent=fx.vigD;
+    state.dustColor=fx.dustC;document.getElementById('dust-color').value=fx.dustC;
+    if(dustParticles)dustParticles.material.color.set(fx.dustC);
+  }
 }
 
 // ============================================================
-// SHARE / URL STATE
+// SHARE
 // ============================================================
-
-function serializeState() {
-  const objects = sceneObjects.map(obj => {
-    const o = {
-      type: obj.userData.type,
-      pos: { x: +obj.position.x.toFixed(3), y: +obj.position.y.toFixed(3), z: +obj.position.z.toFixed(3) },
-      rot: { x: +obj.rotation.x.toFixed(4), y: +obj.rotation.y.toFixed(4), z: +obj.rotation.z.toFixed(4) },
-      scl: { x: +obj.scale.x.toFixed(3), y: +obj.scale.y.toFixed(3), z: +obj.scale.z.toFixed(3) },
-      animate: obj.userData.animate
-    };
-    if (obj.material && obj.material.color) {
-      o.color = '#' + obj.material.color.getHexString();
-    }
-    if (obj.userData.assetUrl) {
-      o.assetUrl = obj.userData.assetUrl;
-    }
-    return o;
-  });
-
-  const s = {
-    sky: state.sky,
-    fogC: state.fogColor,
-    fogD: state.fogDensity,
-    floorM: state.floorMaterial,
-    floorC: state.floorColor,
-    ambI: state.ambIntensity,
-    ambC: state.ambColor,
-    ptI: state.ptIntensity,
-    ptC: state.ptColor,
-    name: state.personalName,
-    camMode: state.cameraMode,
-    objects
-  };
-  return btoa(JSON.stringify(s));
-}
-
-function loadFromURL() {
-  const params = new URLSearchParams(window.location.search);
-  const data = params.get('scene');
-  if (!data) return;
-  try {
-    const s = JSON.parse(atob(data));
-    if (s.sky) { state.sky = s.sky; scene.background.set(s.sky); document.getElementById('sky-color').value = s.sky; }
-    if (s.fogC) { state.fogColor = s.fogC; scene.fog.color.set(s.fogC); document.getElementById('fog-color').value = s.fogC; }
-    if (s.fogD) { state.fogDensity = s.fogD; scene.fog.density = s.fogD; document.getElementById('fog-density').value = s.fogD; }
-    if (s.floorM) { state.floorMaterial = s.floorM; document.getElementById('floor-material').value = s.floorM; }
-    if (s.floorC) { state.floorColor = s.floorC; document.getElementById('floor-color').value = s.floorC; }
-    if (s.ambI) { state.ambIntensity = s.ambI; ambientLight.intensity = s.ambI; }
-    if (s.ambC) { state.ambColor = s.ambC; ambientLight.color.set(s.ambC); document.getElementById('amb-color').value = s.ambC; }
-    if (s.ptI) { state.ptIntensity = s.ptI; pointLight.intensity = s.ptI; }
-    if (s.ptC) { state.ptColor = s.ptC; pointLight.color.set(s.ptC); document.getElementById('pt-color').value = s.ptC; }
-    if (s.name) { state.personalName = s.name; document.getElementById('personal-name').value = s.name; }
-    if (s.camMode) setCamera(s.camMode);
-    buildFloor(); buildSign();
-
-    // If objects array is present, clear defaults and recreate
-    if (s.objects && Array.isArray(s.objects)) {
-      // Remove all default objects
-      while (sceneObjects.length) {
-        const obj = sceneObjects.pop();
-        scene.remove(obj);
-        if (obj.geometry) obj.geometry.dispose();
-        if (obj.material) obj.material.dispose();
-      }
-      selectedObject = null;
-      document.getElementById('selected-controls').style.display = 'none';
-      updateObjectsList();
-
-      s.objects.forEach(o => {
-        if (o.type === 'texture' && o.assetUrl) {
-          addTextureFromURL(o.assetUrl, {
-            x: o.pos.x, y: o.pos.y, z: o.pos.z,
-            rotX: o.rot.x, rotY: o.rot.y, rotZ: o.rot.z,
-            scaleX: o.scl.x, scaleY: o.scl.y, scaleZ: o.scl.z,
-            animate: o.animate
-          });
-        } else if (o.type === 'glb' && o.assetUrl) {
-          addGLBFromURL(o.assetUrl, {
-            x: o.pos.x, y: o.pos.y, z: o.pos.z,
-            rotX: o.rot.x, rotY: o.rot.y, rotZ: o.rot.z,
-            scaleX: o.scl.x, scaleY: o.scl.y, scaleZ: o.scl.z,
-            animate: o.animate
-          });
-        } else {
-          // Primitive: box, sphere, cylinder, torus, cone, plane
-          const mesh = addObject(o.type, { x: o.pos.x, y: o.pos.y, z: o.pos.z, color: o.color || '#e8ff47' });
-          if (mesh) {
-            mesh.rotation.set(o.rot.x, o.rot.y, o.rot.z);
-            mesh.scale.set(o.scl.x, o.scl.y, o.scl.z);
-            mesh.userData.animate = o.animate;
-            mesh.userData.baseY = o.pos.y;
-          }
-        }
-      });
-    }
-  } catch(e) { console.warn('Could not parse URL state', e); }
-}
-
-function shareScene() {
-  const encoded = serializeState();
-  const url = `${window.location.origin}${window.location.pathname}?scene=${encoded}`;
-  navigator.clipboard.writeText(url).then(() => {
-    const toast = document.getElementById('share-toast');
-    toast.classList.add('show');
-    setTimeout(() => toast.classList.remove('show'), 2500);
+function shareScene(){
+  const url=`${location.origin}${location.pathname}?scene=${btoa(JSON.stringify({
+    sky:state.sky,fogC:state.fogColor,fogD:state.fogDensity,floorM:state.floorMaterial,floorC:state.floorColor,
+    ambI:state.ambIntensity,ambC:state.ambColor,ptI:state.ptIntensity,ptC:state.ptColor,
+    name:state.personalName,camMode:state.cameraMode,
+    bloomS:state.bloomStrength,bloomR:state.bloomRadius,bloomT:state.bloomThreshold,
+    vigD:state.vignetteDarkness,vigO:state.vignetteOffset,grainI:state.grainIntensity
+  }))}`;
+  navigator.clipboard.writeText(url).then(()=>{
+    const t=document.getElementById('share-toast');t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500);
   });
 }
+function resetScene(){location.href=location.pathname;}
 
-function resetScene() {
-  window.location.href = window.location.pathname;
+function loadFromURL(){
+  const data=new URLSearchParams(location.search).get('scene');if(!data)return;
+  try{
+    const s=JSON.parse(atob(data));
+    if(s.sky){state.sky=s.sky;scene.background.set(s.sky);document.getElementById('sky-color').value=s.sky;}
+    if(s.fogC){state.fogColor=s.fogC;scene.fog.color.set(s.fogC);}
+    if(s.fogD){state.fogDensity=s.fogD;scene.fog.density=s.fogD;}
+    if(s.floorM){state.floorMaterial=s.floorM;document.getElementById('floor-material').value=s.floorM;}
+    if(s.floorC){state.floorColor=s.floorC;}
+    if(s.ambI){state.ambIntensity=s.ambI;ambientLight.intensity=s.ambI;}
+    if(s.ambC){state.ambColor=s.ambC;ambientLight.color.set(s.ambC);}
+    if(s.ptI){state.ptIntensity=s.ptI;pointLight.intensity=s.ptI;}
+    if(s.ptC){state.ptColor=s.ptC;pointLight.color.set(s.ptC);}
+    if(s.name){state.personalName=s.name;document.getElementById('personal-name').value=s.name;}
+    if(s.camMode)setCamera(s.camMode);
+    if(s.bloomS&&bloomPass){bloomPass.strength=s.bloomS;}
+    if(s.bloomR&&bloomPass){bloomPass.radius=s.bloomR;}
+    if(s.bloomT&&bloomPass){bloomPass.threshold=s.bloomT;}
+    if(s.vigD&&vignettePass){vignettePass.uniforms.darkness.value=s.vigD;}
+    if(s.vigO&&vignettePass){vignettePass.uniforms.offset.value=s.vigO;}
+    if(s.grainI&&filmPass){filmPass.uniforms.nIntensity.value=s.grainI;}
+    buildFloor();buildSign();
+  }catch(e){console.warn('URL parse failed');}
 }
 
 // ============================================================
 // PANEL TOGGLE
 // ============================================================
-
-document.getElementById('panel-toggle').addEventListener('click', () => {
-  panelVisible = !panelVisible;
-  document.getElementById('control-panel').classList.toggle('hidden', !panelVisible);
-  document.getElementById('panel-toggle').textContent = panelVisible ? 'CONTROLS ▶' : 'CONTROLS ◀';
-  document.getElementById('watermark').classList.toggle('panel-hidden', !panelVisible);
+document.getElementById('panel-toggle').addEventListener('click',()=>{
+  panelVisible=!panelVisible;
+  document.getElementById('control-panel').classList.toggle('hidden',!panelVisible);
+  document.getElementById('panel-toggle').textContent=panelVisible?'CONTROLS ▶':'CONTROLS ◀';
+  document.getElementById('watermark').classList.toggle('panel-hidden',!panelVisible);
 });
+
+// ============================================================
+// INIT
+// ============================================================
+function init(){
+  scene=new THREE.Scene();
+  scene.background=new THREE.Color(state.sky);
+  scene.fog=new THREE.FogExp2(state.fogColor,state.fogDensity);
+
+  camera=new THREE.PerspectiveCamera(state.fov,window.innerWidth/window.innerHeight,0.1,1000);
+  camera.position.set(6,4,10);camera.lookAt(0,0,0);
+
+  renderer=new THREE.WebGLRenderer({antialias:true});
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+  renderer.setSize(window.innerWidth,window.innerHeight);
+  renderer.shadowMap.enabled=false;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+  renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.0;
+  document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+  initOrbitControls();
+
+  ambientLight=new THREE.AmbientLight(state.ambColor,state.ambIntensity);scene.add(ambientLight);
+  pointLight=new THREE.PointLight(state.ptColor,state.ptIntensity,80);pointLight.position.set(3,state.ptHeight,3);scene.add(pointLight);
+  scene.add(new THREE.HemisphereLight('#111133','#001100',0.2));
+
+  buildFloor();buildGrid();buildStars();buildSign();buildDust();
+
+  addObject('box',{x:-2,y:0.5,z:0,color:'#4dfff3'});
+  addObject('sphere',{x:0,y:0.8,z:0,color:'#e8ff47'});
+  addObject('torus',{x:2.2,y:0.7,z:0,color:'#ff4d8f'});
+
+  initComposer();
+
+  window.addEventListener('resize',onResize);
+  renderer.domElement.addEventListener('click',onSceneClick);
+  loadFromURL();
+  animate();
+}
 
 // ============================================================
 // ANIMATE
 // ============================================================
-
-function animate() {
+function animate(){
   requestAnimationFrame(animate);
-  const t = clock.getElapsedTime();
-  const dt = clock.getDelta ? 0 : 0;
+  const t=clock.getElapsedTime();
 
-  // FPS counter
   frameCount++;
-  if (t - lastFPSTime >= 1) {
-    fps = frameCount;
-    frameCount = 0;
-    lastFPSTime = t;
-    document.getElementById('perf').textContent = `${fps} FPS`;
-  }
+  if(t-lastFPSTime>=1){document.getElementById('perf').textContent=`${frameCount} FPS`;frameCount=0;lastFPSTime=t;}
 
-  // Object animations
-  sceneObjects.forEach(obj => {
-    // Set baseY on first frame if not yet set
-    if (obj.userData.baseY === undefined) obj.userData.baseY = obj.position.y;
-
-    if (obj.userData.animate && obj !== dragTarget) {
-      const o = obj.userData.animOffset || 0;
-      if (obj.userData.type !== 'glb' && obj.userData.type !== 'texture') {
-        obj.rotation.y = t * 0.4 + o;
-        obj.position.y = obj.userData.baseY + Math.sin(t * 0.8 + o) * 0.08;
+  sceneObjects.forEach(obj=>{
+    if(obj.userData.animate){
+      const o=obj.userData.animOffset||0;
+      if(obj.userData.type!=='glb'&&obj.userData.type!=='texture'){
+        obj.rotation.y=t*0.4+o;
+        if(!obj.userData.baseY)obj.userData.baseY=obj.position.y;
+        obj.position.y=obj.userData.baseY+Math.sin(t*0.8+o)*0.08;
       }
     }
-
-    // Click pulse
-    if (obj.userData.clickAnim) {
-      obj.userData.clickAnim.t += 0.08;
-      const ct = obj.userData.clickAnim.t;
-      const orig = obj.userData.clickAnim.orig;
-      if (ct < 1) {
-        const pulse = 1 + Math.sin(ct * Math.PI) * 0.3;
-        obj.scale.setScalar(orig * pulse);
-      } else {
-        obj.scale.setScalar(orig);
-        delete obj.userData.clickAnim;
-      }
+    if(obj.userData.clickAnim){
+      obj.userData.clickAnim.t+=0.08;
+      const ct=obj.userData.clickAnim.t;
+      if(ct<1)obj.scale.setScalar(obj.userData.clickAnim.orig*(1+Math.sin(ct*Math.PI)*0.3));
+      else{obj.scale.setScalar(obj.userData.clickAnim.orig);delete obj.userData.clickAnim;}
     }
   });
 
-  // Light orbit
-  if (state.lightOrbit) {
-    lightOrbitAngle += 0.01;
-    const r = 6;
-    pointLight.position.x = Math.cos(lightOrbitAngle) * r;
-    pointLight.position.z = Math.sin(lightOrbitAngle) * r;
+  if(state.lightOrbit){lightOrbitAngle+=0.01;pointLight.position.x=Math.cos(lightOrbitAngle)*6;pointLight.position.z=Math.sin(lightOrbitAngle)*6;}
+
+  if(state.cameraMode==='orbit')updateOrbitCamera();
+  else if(state.cameraMode==='auto'){spherical.theta+=0.003;updateOrbitCamera();}
+  else if(state.cameraMode==='cinematic'){
+    cinematicAngle+=state.camSpeed*0.005;
+    camera.position.set(Math.cos(cinematicAngle)*10,3+Math.sin(cinematicAngle*0.3)*2,Math.sin(cinematicAngle)*10);
+    camera.lookAt(0,1,0);
   }
 
-  // Camera modes
-  if (state.cameraMode === 'orbit') {
-    updateOrbitCamera();
-  } else if (state.cameraMode === 'auto') {
-    spherical.theta += 0.003;
-    updateOrbitCamera();
-  } else if (state.cameraMode === 'cinematic') {
-    cinematicAngle += state.camSpeed * 0.005;
-    const radius = 10;
-    const height = 3 + Math.sin(cinematicAngle * 0.3) * 2;
-    camera.position.set(
-      Math.cos(cinematicAngle) * radius,
-      height,
-      Math.sin(cinematicAngle) * radius
-    );
-    camera.lookAt(0, 1, 0);
-  }
+  if(signMesh)signMesh.position.y=2.5+Math.sin(t*0.5)*0.05;
+  animateDust(t);
+  if(filmPass&&filmPass.uniforms.time)filmPass.uniforms.time.value=t;
 
-  // Sign gentle float
-  if (signMesh) {
-    signMesh.position.y = 2.5 + Math.sin(t * 0.5) * 0.05;
-  }
-
-  renderer.render(scene, camera);
+  if(composer)composer.render();else renderer.render(scene,camera);
 }
 
-// ============================================================
-// RESIZE
-// ============================================================
-
-function onResize() {
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
+function onResize(){
+  camera.aspect=window.innerWidth/window.innerHeight;camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth,window.innerHeight);
+  if(composer)composer.setSize(window.innerWidth,window.innerHeight);
+  if(bloomPass)bloomPass.resolution.set(window.innerWidth,window.innerHeight);
 }
 
-// ============================================================
-// START
-// ============================================================
-
-setupRangeInputs();
-setupColorInputs();
+setupRangeInputs();setupColorInputs();setupFXControls();
 init();
-
 </script>
 </body>
 </html>
