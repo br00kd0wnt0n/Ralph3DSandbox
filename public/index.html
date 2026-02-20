@@ -321,9 +321,9 @@ let target=new THREE.Vector3();
 
 function initOrbitControls(){
   const el=renderer.domElement;
-  el.addEventListener('mousedown',e=>{orbitState.active=true;orbitState.button=e.button;if(e.button===0)orbitState.rotateStart.set(e.clientX,e.clientY);if(e.button===2)orbitState.panStart.set(e.clientX,e.clientY);e.preventDefault();});
+  el.addEventListener('mousedown',e=>{if(dragObject)return;orbitState.active=true;orbitState.button=e.button;if(e.button===0)orbitState.rotateStart.set(e.clientX,e.clientY);if(e.button===2)orbitState.panStart.set(e.clientX,e.clientY);e.preventDefault();});
   el.addEventListener('mousemove',e=>{
-    if(!orbitState.active||state.cameraMode!=='orbit')return;
+    if(isDragging||!orbitState.active||state.cameraMode!=='orbit')return;
     if(orbitState.button===0){const dx=(e.clientX-orbitState.rotateStart.x)/window.innerHeight*Math.PI*2;const dy=(e.clientY-orbitState.rotateStart.y)/window.innerHeight*Math.PI;spherical.theta-=dx;spherical.phi=Math.max(0.05,Math.min(Math.PI-0.05,spherical.phi-dy));orbitState.rotateStart.set(e.clientX,e.clientY);}
     if(orbitState.button===2){const dx=(e.clientX-orbitState.panStart.x)*0.01;const dy=(e.clientY-orbitState.panStart.y)*0.01;const r=new THREE.Vector3();camera.getWorldDirection(r);r.cross(camera.up).normalize().multiplyScalar(-dx);target.add(r).add(camera.up.clone().multiplyScalar(dy));orbitState.panStart.set(e.clientX,e.clientY);}
   });
@@ -594,17 +594,61 @@ function removeObject(id){
 function removeSelected(){if(selectedObject)removeObject(selectedObject.userData.id);}
 
 // ============================================================
-// CLICK
+// CLICK & DRAG
 // ============================================================
 const raycaster=new THREE.Raycaster();const mouse=new THREE.Vector2();
-function onSceneClick(e){
+const groundPlane=new THREE.Plane(new THREE.Vector3(0,1,0),0);
+let dragObject=null,isDragging=false,dragOffset=new THREE.Vector3(),mouseDownPos=new THREE.Vector2();
+
+function getMouseNDC(e){
   const rect=renderer.domElement.getBoundingClientRect();
   mouse.x=((e.clientX-rect.left)/rect.width)*2-1;
   mouse.y=-((e.clientY-rect.top)/rect.height)*2+1;
-  raycaster.setFromCamera(mouse,camera);
-  const hits=raycaster.intersectObjects(sceneObjects);
-  if(hits.length>0){const obj=hits[0].object;selectObject(obj);obj.userData.clickAnim={t:0,orig:obj.scale.x};spawnRipple(e.clientX,e.clientY);}
 }
+
+function onPointerDown(e){
+  if(e.button!==0)return;
+  mouseDownPos.set(e.clientX,e.clientY);
+  getMouseNDC(e);
+  raycaster.setFromCamera(mouse,camera);
+  const hits=raycaster.intersectObjects(sceneObjects,true);
+  if(hits.length>0){
+    let obj=hits[0].object;
+    while(obj.parent&&!sceneObjects.includes(obj))obj=obj.parent;
+    if(!sceneObjects.includes(obj))return;
+    dragObject=obj;
+    groundPlane.constant=-obj.position.y;
+    const intersection=new THREE.Vector3();
+    raycaster.ray.intersectPlane(groundPlane,intersection);
+    dragOffset.copy(obj.position).sub(intersection);
+    orbitState.active=false;
+  }
+}
+
+function onPointerMove(e){
+  if(!dragObject)return;
+  const dx=e.clientX-mouseDownPos.x,dy=e.clientY-mouseDownPos.y;
+  if(!isDragging&&Math.sqrt(dx*dx+dy*dy)<5)return;
+  isDragging=true;
+  getMouseNDC(e);
+  raycaster.setFromCamera(mouse,camera);
+  const intersection=new THREE.Vector3();
+  if(raycaster.ray.intersectPlane(groundPlane,intersection)){
+    dragObject.position.x=intersection.x+dragOffset.x;
+    dragObject.position.z=intersection.z+dragOffset.z;
+    if(dragObject.userData.baseY)dragObject.userData.baseY=dragObject.position.y;
+  }
+}
+
+function onPointerUp(e){
+  if(dragObject&&!isDragging){
+    selectObject(dragObject);
+    dragObject.userData.clickAnim={t:0,orig:dragObject.scale.x};
+    spawnRipple(e.clientX,e.clientY);
+  }
+  dragObject=null;isDragging=false;
+}
+
 function spawnRipple(x,y){const r=document.createElement('div');r.className='ripple';r.style.left=x+'px';r.style.top=y+'px';document.body.appendChild(r);setTimeout(()=>r.remove(),500);}
 
 // ============================================================
@@ -811,7 +855,9 @@ function init(){
   initComposer();
 
   window.addEventListener('resize',onResize);
-  renderer.domElement.addEventListener('click',onSceneClick);
+  renderer.domElement.addEventListener('pointerdown',onPointerDown);
+  renderer.domElement.addEventListener('pointermove',onPointerMove);
+  renderer.domElement.addEventListener('pointerup',onPointerUp);
   loadFromURL();
   animate();
 }
