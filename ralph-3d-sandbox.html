@@ -1169,11 +1169,12 @@ function addObject(type, opts = {}) {
   const mesh = new THREE.Mesh(geo, mat);
 
   const halfH = type === 'sphere' ? 0.6 : type === 'torus' ? 0.5 : 0.5;
-  mesh.position.set(x, (opts.y !== undefined ? opts.y : halfH), z);
+  const posY = opts.y !== undefined ? opts.y : halfH;
+  mesh.position.set(x, posY, z);
   mesh.castShadow = true;
 
   const id = ++objectIdCounter;
-  mesh.userData = { id, type, animate: true, animOffset: Math.random() * Math.PI * 2 };
+  mesh.userData = { id, type, animate: true, animOffset: Math.random() * Math.PI * 2, baseY: posY };
 
   scene.add(mesh);
   sceneObjects.push(mesh);
@@ -1409,9 +1410,8 @@ function onCanvasMouseMove(e) {
 
   dragTarget.position.x = dragIntersect.x + dragOffset.x;
   dragTarget.position.z = dragIntersect.z + dragOffset.z;
-
-  // Update baseY so idle animation doesn't fight with position
-  dragTarget.userData.baseY = dragTarget.position.y;
+  // Lock Y to baseY during drag (no bounce)
+  dragTarget.position.y = dragTarget.userData.baseY;
 
   // Update panel sliders if this is the selected object
   if (dragTarget === selectedObject) {
@@ -1727,12 +1727,14 @@ function animate() {
 
   // Object animations
   sceneObjects.forEach(obj => {
-    if (obj.userData.animate) {
+    // Set baseY on first frame if not yet set
+    if (obj.userData.baseY === undefined) obj.userData.baseY = obj.position.y;
+
+    if (obj.userData.animate && obj !== dragTarget) {
       const o = obj.userData.animOffset || 0;
       if (obj.userData.type !== 'glb' && obj.userData.type !== 'texture') {
         obj.rotation.y = t * 0.4 + o;
-        obj.position.y = (obj.userData.baseY || obj.position.y) + Math.sin(t * 0.8 + o) * 0.08;
-        if (!obj.userData.baseY) obj.userData.baseY = obj.position.y;
+        obj.position.y = obj.userData.baseY + Math.sin(t * 0.8 + o) * 0.08;
       }
     }
 
