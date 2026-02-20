@@ -1468,58 +1468,124 @@ function spawnRipple(x, y) {
 // ASSET IMPORT
 // ============================================================
 
-function loadTexture(input) {
-  const file = input.files[0];
-  if (!file) return;
-  const url = URL.createObjectURL(file);
+async function uploadFile(file) {
+  const formData = new FormData();
+  formData.append('file', file);
+  const resp = await fetch('/api/upload', { method: 'POST', body: formData });
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({ error: 'Upload failed' }));
+    throw new Error(err.error || 'Upload failed');
+  }
+  return await resp.json();
+}
+
+function addTextureFromURL(url, opts = {}) {
   const loader = new THREE.TextureLoader();
   loader.load(url, tex => {
     const geo = new THREE.PlaneGeometry(2, 2);
     const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, side: THREE.DoubleSide });
     const mesh = new THREE.Mesh(geo, mat);
-    mesh.position.set(Math.random() * 4 - 2, 1, Math.random() * 4 - 2);
-    mesh.rotation.y = Math.random() * Math.PI * 2;
+    const px = opts.x !== undefined ? opts.x : Math.random() * 4 - 2;
+    const py = opts.y !== undefined ? opts.y : 1;
+    const pz = opts.z !== undefined ? opts.z : Math.random() * 4 - 2;
+    mesh.position.set(px, py, pz);
+    if (opts.rotX !== undefined) mesh.rotation.x = opts.rotX;
+    if (opts.rotY !== undefined) mesh.rotation.y = opts.rotY;
+    else mesh.rotation.y = Math.random() * Math.PI * 2;
+    if (opts.rotZ !== undefined) mesh.rotation.z = opts.rotZ;
+    if (opts.scaleX !== undefined) mesh.scale.set(opts.scaleX, opts.scaleY || 1, opts.scaleZ || 1);
     const id = ++objectIdCounter;
-    mesh.userData = { id, type: 'texture', animate: true, animOffset: Math.random() * Math.PI * 2 };
+    const animate = opts.animate !== undefined ? opts.animate : true;
+    mesh.userData = { id, type: 'texture', animate, animOffset: Math.random() * Math.PI * 2, baseY: py, assetUrl: url };
     scene.add(mesh);
     sceneObjects.push(mesh);
     updateObjectsList();
-    setAssetStatus(`✓ Texture loaded: ${file.name}`);
-  }, undefined, () => setAssetStatus('✗ Failed to load texture'));
+    if (opts.onLoad) opts.onLoad(mesh);
+  }, undefined, () => {
+    if (opts.onError) opts.onError();
+    else setAssetStatus('✗ Failed to load texture');
+  });
 }
 
-function loadGLB(input) {
+async function loadTexture(input) {
   const file = input.files[0];
   if (!file) return;
-  setAssetStatus('Loading GLB...');
+  setAssetStatus('Uploading texture...');
+  try {
+    const result = await uploadFile(file);
+    addTextureFromURL(result.url, {
+      onLoad: () => setAssetStatus(`✓ Texture uploaded: ${file.name}`)
+    });
+  } catch(e) {
+    setAssetStatus(`✗ Upload failed: ${e.message}`);
+  }
+}
 
-  // Dynamic import of GLTFLoader
-  const script = document.createElement('script');
-  script.src = 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js';
-  script.onload = () => {
+function ensureGLTFLoader() {
+  return new Promise((resolve, reject) => {
+    if (window.THREE && THREE.GLTFLoader) return resolve();
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js';
+    script.onload = resolve;
+    script.onerror = reject;
+    document.head.appendChild(script);
+  });
+}
+
+function addGLBFromURL(url, opts = {}) {
+  ensureGLTFLoader().then(() => {
     const loader = new THREE.GLTFLoader();
-    const url = URL.createObjectURL(file);
     loader.load(url, gltf => {
       const model = gltf.scene;
-      // Auto-scale
-      const box = new THREE.Box3().setFromObject(model);
-      const size = box.getSize(new THREE.Vector3()).length();
-      const scale = 3 / size;
-      model.scale.setScalar(scale);
-      // Ground
-      const boxAfter = new THREE.Box3().setFromObject(model);
-      const minY = boxAfter.min.y;
-      model.position.y = -minY;
+      // Auto-scale if no explicit scale given
+      if (opts.scaleX === undefined) {
+        const box = new THREE.Box3().setFromObject(model);
+        const size = box.getSize(new THREE.Vector3()).length();
+        const s = 3 / size;
+        model.scale.setScalar(s);
+      } else {
+        model.scale.set(opts.scaleX, opts.scaleY || 1, opts.scaleZ || 1);
+      }
+      // Ground or position from opts
+      if (opts.y !== undefined) {
+        model.position.set(opts.x || 0, opts.y, opts.z || 0);
+      } else {
+        const boxAfter = new THREE.Box3().setFromObject(model);
+        model.position.y = -boxAfter.min.y;
+        if (opts.x !== undefined) model.position.x = opts.x;
+        if (opts.z !== undefined) model.position.z = opts.z;
+      }
+      if (opts.rotX !== undefined) model.rotation.x = opts.rotX;
+      if (opts.rotY !== undefined) model.rotation.y = opts.rotY;
+      if (opts.rotZ !== undefined) model.rotation.z = opts.rotZ;
 
       const id = ++objectIdCounter;
-      model.userData = { id, type: 'glb', animate: false, animOffset: 0 };
+      const animate = opts.animate !== undefined ? opts.animate : false;
+      model.userData = { id, type: 'glb', animate, animOffset: 0, baseY: model.position.y, assetUrl: url };
       scene.add(model);
       sceneObjects.push(model);
       updateObjectsList();
-      setAssetStatus(`✓ Model loaded: ${file.name}`);
-    }, undefined, () => setAssetStatus('✗ Failed to load GLB'));
-  };
-  document.head.appendChild(script);
+      if (opts.onLoad) opts.onLoad(model);
+    }, undefined, () => {
+      if (opts.onError) opts.onError();
+      else setAssetStatus('✗ Failed to load GLB');
+    });
+  });
+}
+
+async function loadGLB(input) {
+  const file = input.files[0];
+  if (!file) return;
+  setAssetStatus('Uploading GLB...');
+  try {
+    const result = await uploadFile(file);
+    addGLBFromURL(result.url, {
+      onLoad: () => setAssetStatus(`✓ Model uploaded: ${file.name}`),
+      onError: () => setAssetStatus('✗ Failed to load uploaded model')
+    });
+  } catch(e) {
+    setAssetStatus(`✗ Upload failed: ${e.message}`);
+  }
 }
 
 function setAssetStatus(msg) {
@@ -1658,6 +1724,23 @@ function applyPreset(name) {
 // ============================================================
 
 function serializeState() {
+  const objects = sceneObjects.map(obj => {
+    const o = {
+      type: obj.userData.type,
+      pos: { x: +obj.position.x.toFixed(3), y: +obj.position.y.toFixed(3), z: +obj.position.z.toFixed(3) },
+      rot: { x: +obj.rotation.x.toFixed(4), y: +obj.rotation.y.toFixed(4), z: +obj.rotation.z.toFixed(4) },
+      scl: { x: +obj.scale.x.toFixed(3), y: +obj.scale.y.toFixed(3), z: +obj.scale.z.toFixed(3) },
+      animate: obj.userData.animate
+    };
+    if (obj.material && obj.material.color) {
+      o.color = '#' + obj.material.color.getHexString();
+    }
+    if (obj.userData.assetUrl) {
+      o.assetUrl = obj.userData.assetUrl;
+    }
+    return o;
+  });
+
   const s = {
     sky: state.sky,
     fogC: state.fogColor,
@@ -1670,6 +1753,7 @@ function serializeState() {
     ptC: state.ptColor,
     name: state.personalName,
     camMode: state.cameraMode,
+    objects
   };
   return btoa(JSON.stringify(s));
 }
@@ -1692,7 +1776,48 @@ function loadFromURL() {
     if (s.name) { state.personalName = s.name; document.getElementById('personal-name').value = s.name; }
     if (s.camMode) setCamera(s.camMode);
     buildFloor(); buildSign();
-  } catch(e) { console.warn('Could not parse URL state'); }
+
+    // If objects array is present, clear defaults and recreate
+    if (s.objects && Array.isArray(s.objects)) {
+      // Remove all default objects
+      while (sceneObjects.length) {
+        const obj = sceneObjects.pop();
+        scene.remove(obj);
+        if (obj.geometry) obj.geometry.dispose();
+        if (obj.material) obj.material.dispose();
+      }
+      selectedObject = null;
+      document.getElementById('selected-controls').style.display = 'none';
+      updateObjectsList();
+
+      s.objects.forEach(o => {
+        if (o.type === 'texture' && o.assetUrl) {
+          addTextureFromURL(o.assetUrl, {
+            x: o.pos.x, y: o.pos.y, z: o.pos.z,
+            rotX: o.rot.x, rotY: o.rot.y, rotZ: o.rot.z,
+            scaleX: o.scl.x, scaleY: o.scl.y, scaleZ: o.scl.z,
+            animate: o.animate
+          });
+        } else if (o.type === 'glb' && o.assetUrl) {
+          addGLBFromURL(o.assetUrl, {
+            x: o.pos.x, y: o.pos.y, z: o.pos.z,
+            rotX: o.rot.x, rotY: o.rot.y, rotZ: o.rot.z,
+            scaleX: o.scl.x, scaleY: o.scl.y, scaleZ: o.scl.z,
+            animate: o.animate
+          });
+        } else {
+          // Primitive: box, sphere, cylinder, torus, cone, plane
+          const mesh = addObject(o.type, { x: o.pos.x, y: o.pos.y, z: o.pos.z, color: o.color || '#e8ff47' });
+          if (mesh) {
+            mesh.rotation.set(o.rot.x, o.rot.y, o.rot.z);
+            mesh.scale.set(o.scl.x, o.scl.y, o.scl.z);
+            mesh.userData.animate = o.animate;
+            mesh.userData.baseY = o.pos.y;
+          }
+        }
+      });
+    }
+  } catch(e) { console.warn('Could not parse URL state', e); }
 }
 
 function shareScene() {
