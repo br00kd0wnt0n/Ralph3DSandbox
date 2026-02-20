@@ -8,13 +8,11 @@
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/FilmShader.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/BokehShader.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/EffectComposer.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/FilmPass.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/BokehPass.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap');
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -120,8 +118,8 @@ select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%
       <div class="fx-section-title">DEPTH OF FIELD</div>
       <div class="toggle-row"><span class="toggle-label">ENABLED</span><div class="toggle" id="toggle-dof" onclick="toggleFX(this,'dof')"></div></div>
       <div class="control-row"><div class="control-label"><span>Focus Distance</span><span class="val" id="dof-focus-val">8</span></div><input type="range" id="dof-focus" min="0.5" max="30" step="0.5" value="8"></div>
-      <div class="control-row"><div class="control-label"><span>Aperture</span><span class="val" id="dof-apt-val">0.005</span></div><input type="range" id="dof-aperture" min="0.0005" max="0.05" step="0.0005" value="0.005"></div>
-      <div class="control-row"><div class="control-label"><span>Max Blur</span><span class="val" id="dof-blur-val">0.01</span></div><input type="range" id="dof-maxblur" min="0" max="0.05" step="0.001" value="0.01"></div>
+      <div class="control-row"><div class="control-label"><span>Aperture</span><span class="val" id="dof-apt-val">0.015</span></div><input type="range" id="dof-aperture" min="0.001" max="0.1" step="0.001" value="0.015"></div>
+      <div class="control-row"><div class="control-label"><span>Max Blur</span><span class="val" id="dof-blur-val">0.02</span></div><input type="range" id="dof-maxblur" min="0" max="0.08" step="0.002" value="0.02"></div>
       <div class="fx-divider"></div>
       <div class="fx-section-title">FILM GRAIN</div>
       <div class="toggle-row"><span class="toggle-label">ENABLED</span><div class="toggle on" id="toggle-grain" onclick="toggleFX(this,'grain')"></div></div>
@@ -288,6 +286,57 @@ const VignetteShader = {
   fragmentShader: `uniform sampler2D tDiffuse;uniform float offset;uniform float darkness;uniform float enabled;varying vec2 vUv;
   void main(){vec4 t=texture2D(tDiffuse,vUv);if(enabled>0.5){vec2 uv=(vUv-vec2(0.5))*vec2(offset);float v=1.0-dot(uv,uv);v=clamp(pow(v,darkness),0.0,1.0);t.rgb*=v;}gl_FragColor=t;}`
 };
+const DOFShader = {
+  uniforms: {
+    tDiffuse:{value:null}, tDepth:{value:null},
+    focus:{value:8.0}, aperture:{value:0.015}, maxblur:{value:0.02},
+    nearClip:{value:0.1}, farClip:{value:1000.0},
+    enabled:{value:0.0}, resolution:{value:new THREE.Vector2(1,1)}
+  },
+  vertexShader: `varying vec2 vUv; void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`,
+  fragmentShader: `
+    uniform sampler2D tDiffuse;
+    uniform sampler2D tDepth;
+    uniform float focus;
+    uniform float aperture;
+    uniform float maxblur;
+    uniform float nearClip;
+    uniform float farClip;
+    uniform float enabled;
+    uniform vec2 resolution;
+    varying vec2 vUv;
+
+    float getDepth(vec2 uv){
+      float z=texture2D(tDepth,uv).x;
+      return(2.0*nearClip*farClip)/(farClip+nearClip-z*(farClip-nearClip));
+    }
+
+    void main(){
+      vec4 color=texture2D(tDiffuse,vUv);
+      if(enabled<0.5){gl_FragColor=color;return;}
+      float depth=getDepth(vUv);
+      float blur=clamp(abs(depth-focus)*aperture,0.0,maxblur);
+      vec2 texel=blur/resolution;
+      vec4 sum=color;
+      float total=1.0;
+      // 12-tap poisson disc blur
+      vec2 offsets[12];
+      offsets[0]=vec2(-0.326,-0.406);offsets[1]=vec2(-0.840,-0.074);
+      offsets[2]=vec2(-0.696,0.457);offsets[3]=vec2(-0.203,0.621);
+      offsets[4]=vec2(0.962,-0.195);offsets[5]=vec2(0.473,-0.480);
+      offsets[6]=vec2(0.519,0.767);offsets[7]=vec2(0.185,-0.893);
+      offsets[8]=vec2(0.507,0.064);offsets[9]=vec2(0.896,0.412);
+      offsets[10]=vec2(-0.322,-0.933);offsets[11]=vec2(-0.792,-0.598);
+      for(int i=0;i<12;i++){
+        vec2 uv=vUv+offsets[i]*texel;
+        sum+=texture2D(tDiffuse,uv);
+        total+=1.0;
+      }
+      gl_FragColor=sum/total;
+    }
+  `
+};
+
 const ChromaShader = {
   uniforms: { tDiffuse:{value:null}, strength:{value:0.003}, enabled:{value:0.0} },
   vertexShader: `varying vec2 vUv; void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`,
@@ -298,7 +347,7 @@ const ChromaShader = {
 // ============================================================
 // STATE
 // ============================================================
-let scene,camera,renderer,composer,bloomPass,filmPass,bokehPass,vignettePass,chromaPass;
+let scene,camera,renderer,composer,bloomPass,filmPass,dofPass,vignettePass,chromaPass,depthTarget;
 let clock=new THREE.Clock(),frameCount=0,lastFPSTime=0;
 let state={
   sky:'#0d0d1a',fogColor:'#0d0d1a',fogDensity:0.02,
@@ -311,7 +360,7 @@ let state={
   personalName:'RALPH',textColor:'#e8ff47',textBg:'#0a0a0c',
   textFont:"bold 80px 'Arial Black'",showSign:true,
   bloomEnabled:true,bloomStrength:0.8,bloomRadius:0.4,bloomThreshold:0.3,
-  dofEnabled:false,dofFocus:8,dofAperture:0.005,dofMaxBlur:0.01,
+  dofEnabled:false,dofFocus:8,dofAperture:0.015,dofMaxBlur:0.02,
   grainEnabled:true,grainIntensity:0.15,scanlinesEnabled:false,
   vignetteEnabled:true,vignetteDarkness:0.6,vignetteOffset:1.0,
   chromaEnabled:false,chromaStrength:0.003,
@@ -352,6 +401,13 @@ function updateOrbitCamera(){camera.position.setFromSpherical(spherical).add(tar
 // POST-PROCESSING
 // ============================================================
 function initComposer(){
+  // Depth render target for DOF
+  depthTarget=new THREE.WebGLRenderTarget(window.innerWidth,window.innerHeight);
+  depthTarget.texture.minFilter=THREE.NearestFilter;
+  depthTarget.texture.magFilter=THREE.NearestFilter;
+  depthTarget.depthTexture=new THREE.DepthTexture();
+  depthTarget.depthTexture.type=THREE.UnsignedShortType;
+
   composer=new THREE.EffectComposer(renderer);
   composer.addPass(new THREE.RenderPass(scene,camera));
 
@@ -359,9 +415,16 @@ function initComposer(){
   bloomPass.enabled=state.bloomEnabled;
   composer.addPass(bloomPass);
 
-  bokehPass=new THREE.BokehPass(scene,camera,{focus:state.dofFocus,aperture:state.dofAperture,maxblur:state.dofMaxBlur,width:window.innerWidth,height:window.innerHeight});
-  bokehPass.enabled=state.dofEnabled;
-  composer.addPass(bokehPass);
+  dofPass=new THREE.ShaderPass(DOFShader);
+  dofPass.uniforms.focus.value=state.dofFocus;
+  dofPass.uniforms.aperture.value=state.dofAperture;
+  dofPass.uniforms.maxblur.value=state.dofMaxBlur;
+  dofPass.uniforms.nearClip.value=camera.near;
+  dofPass.uniforms.farClip.value=camera.far;
+  dofPass.uniforms.enabled.value=state.dofEnabled?1.0:0.0;
+  dofPass.uniforms.resolution.value.set(window.innerWidth,window.innerHeight);
+  dofPass.uniforms.tDepth.value=depthTarget.depthTexture;
+  composer.addPass(dofPass);
 
   filmPass=new THREE.FilmPass(state.grainIntensity,0.0,648,false);
   filmPass.enabled=state.grainEnabled;
@@ -388,7 +451,7 @@ function toggleFX(el,feature){
   const on=el.classList.contains('on');
   switch(feature){
     case 'bloom': state.bloomEnabled=on; if(bloomPass)bloomPass.enabled=on; break;
-    case 'dof': state.dofEnabled=on; if(bokehPass)bokehPass.enabled=on; break;
+    case 'dof': state.dofEnabled=on; if(dofPass)dofPass.uniforms.enabled.value=on?1.0:0.0; break;
     case 'grain': state.grainEnabled=on; if(filmPass)filmPass.enabled=on||state.scanlinesEnabled; break;
     case 'scanlines': state.scanlinesEnabled=on; if(filmPass){filmPass.uniforms.sIntensity.value=on?0.5:0.0;filmPass.enabled=state.grainEnabled||on;} break;
     case 'vignette': state.vignetteEnabled=on; if(vignettePass)vignettePass.uniforms.enabled.value=on?1.0:0.0; break;
@@ -401,9 +464,9 @@ function setupFXControls(){
   bind('bloom-strength','bloom-str-val',v=>{state.bloomStrength=+v;if(bloomPass)bloomPass.strength=+v;});
   bind('bloom-radius','bloom-rad-val',v=>{state.bloomRadius=+v;if(bloomPass)bloomPass.radius=+v;});
   bind('bloom-threshold','bloom-thr-val',v=>{state.bloomThreshold=+v;if(bloomPass)bloomPass.threshold=+v;});
-  bind('dof-focus','dof-focus-val',v=>{state.dofFocus=+v;if(bokehPass)bokehPass.uniforms.focus.value=+v;});
-  bind('dof-aperture','dof-apt-val',v=>{state.dofAperture=+v;if(bokehPass)bokehPass.uniforms.aperture.value=+v;});
-  bind('dof-maxblur','dof-blur-val',v=>{state.dofMaxBlur=+v;if(bokehPass)bokehPass.uniforms.maxblur.value=+v;});
+  bind('dof-focus','dof-focus-val',v=>{state.dofFocus=+v;if(dofPass)dofPass.uniforms.focus.value=+v;});
+  bind('dof-aperture','dof-apt-val',v=>{state.dofAperture=+v;if(dofPass)dofPass.uniforms.aperture.value=+v;});
+  bind('dof-maxblur','dof-blur-val',v=>{state.dofMaxBlur=+v;if(dofPass)dofPass.uniforms.maxblur.value=+v;});
   bind('grain-intensity','grain-int-val',v=>{state.grainIntensity=+v;if(filmPass)filmPass.uniforms.nIntensity.value=+v;});
   bind('vignette-darkness','vig-dark-val',v=>{state.vignetteDarkness=+v;if(vignettePass)vignettePass.uniforms.darkness.value=+v;});
   bind('vignette-offset','vig-off-val',v=>{state.vignetteOffset=+v;if(vignettePass)vignettePass.uniforms.offset.value=+v;});
@@ -908,10 +971,10 @@ function loadFromURL(){
 
     // DOF
     applyToggle('dofEnabled',s.dofEn,'toggle-dof');
-    if(s.dofEn!==undefined&&bokehPass)bokehPass.enabled=s.dofEn;
-    apply('dofFocus',s.dofF,'dof-focus',v=>{if(bokehPass)bokehPass.uniforms.focus.value=v;document.getElementById('dof-focus-val').textContent=v;});
-    apply('dofAperture',s.dofA,'dof-aperture',v=>{if(bokehPass)bokehPass.uniforms.aperture.value=v;document.getElementById('dof-apt-val').textContent=v;});
-    apply('dofMaxBlur',s.dofB,'dof-maxblur',v=>{if(bokehPass)bokehPass.uniforms.maxblur.value=v;document.getElementById('dof-blur-val').textContent=v;});
+    if(s.dofEn!==undefined&&dofPass)dofPass.uniforms.enabled.value=s.dofEn?1.0:0.0;
+    apply('dofFocus',s.dofF,'dof-focus',v=>{if(dofPass)dofPass.uniforms.focus.value=v;document.getElementById('dof-focus-val').textContent=v;});
+    apply('dofAperture',s.dofA,'dof-aperture',v=>{if(dofPass)dofPass.uniforms.aperture.value=v;document.getElementById('dof-apt-val').textContent=v;});
+    apply('dofMaxBlur',s.dofB,'dof-maxblur',v=>{if(dofPass)dofPass.uniforms.maxblur.value=v;document.getElementById('dof-blur-val').textContent=v;});
 
     // Film grain
     applyToggle('grainEnabled',s.grEn,'toggle-grain');
@@ -1047,6 +1110,8 @@ function animate(){
   animateDust(t);
   if(filmPass&&filmPass.uniforms.time)filmPass.uniforms.time.value=t;
 
+  // Render depth pass for DOF
+  if(depthTarget&&state.dofEnabled){renderer.setRenderTarget(depthTarget);renderer.render(scene,camera);renderer.setRenderTarget(null);}
   if(composer)composer.render();else renderer.render(scene,camera);
 }
 
@@ -1055,6 +1120,8 @@ function onResize(){
   renderer.setSize(window.innerWidth,window.innerHeight);
   if(composer)composer.setSize(window.innerWidth,window.innerHeight);
   if(bloomPass)bloomPass.resolution.set(window.innerWidth,window.innerHeight);
+  if(depthTarget)depthTarget.setSize(window.innerWidth,window.innerHeight);
+  if(dofPass)dofPass.uniforms.resolution.value.set(window.innerWidth,window.innerHeight);
 }
 
 setupRangeInputs();setupColorInputs();setupFXControls();
